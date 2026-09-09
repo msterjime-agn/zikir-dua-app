@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore and compatibility-patch app source
+      - name: Restore and patch app source
         shell: bash
         run: |
           set -euo pipefail
@@ -39,14 +39,39 @@ jobs:
 
           private void loadContent()'''
 
-          s2, n = re.subn(pattern, replacement, s, count=1)
+          s, n = re.subn(pattern, replacement, s, count=1)
           if n != 1:
               raise SystemExit('configureSystemBars patch failed')
-          p.write_text(s2, encoding='utf-8')
+
+          old_padding = '        root.setPadding(dp(16), dp(10), dp(16), dp(10));'
+          new_padding = '''        root.setPadding(dp(16), dp(10), dp(16), dp(10));
+        if (android.os.Build.VERSION.SDK_INT >= 20) {
+            root.setOnApplyWindowInsetsListener((v, insets) -> {
+                int topInset = insets.getSystemWindowInsetTop();
+                v.setPadding(dp(16), dp(10) + topInset, dp(16), dp(10));
+                return insets;
+            });
+        }'''
+          if old_padding not in s:
+              raise SystemExit('root padding patch point not found')
+          s = s.replace(old_padding, new_padding, 1)
+
+          old_set = '        setContentView(root);\n        refreshAll();'
+          new_set = '''        setContentView(root);
+        if (android.os.Build.VERSION.SDK_INT >= 20) {
+            root.requestApplyInsets();
+        }
+        refreshAll();'''
+          if old_set not in s:
+              raise SystemExit('setContentView patch point not found')
+          s = s.replace(old_set, new_set, 1)
+
+          p.write_text(s, encoding='utf-8')
           PY
           test -s app/src/main/java/com/dost/zikirdua/MainActivity.java
           test -s app/src/main/assets/content.json
           ! grep -q "WindowInsetsController" app/src/main/java/com/dost/zikirdua/MainActivity.java
+          grep -q "setOnApplyWindowInsetsListener" app/src/main/java/com/dost/zikirdua/MainActivity.java
           python3 -m json.tool app/src/main/assets/content.json >/dev/null
 
       - name: Set up Java 17
@@ -72,6 +97,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ZikirDua-v1.1-APK
+          name: ZikirDua-v1.2-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
