@@ -28,40 +28,44 @@ jobs:
           s = s.replace('import android.view.WindowInsetsController;\n', '')
 
           pattern = r'(?s)    private void configureSystemBars\(\) \{.*?\n    \}\n\n    private void loadContent\(\)'
-          replacement = '''    private void configureSystemBars() {
-              Window w = getWindow();
-              w.setStatusBarColor(bg);
-              w.setNavigationBarColor(bg);
-              if (!dark && android.os.Build.VERSION.SDK_INT >= 23) {
-                  w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-              }
-          }
-
-          private void loadContent()'''
-
+          replacement = (
+              "    private void configureSystemBars() {\n"
+              "        Window w = getWindow();\n"
+              "        w.setStatusBarColor(bg);\n"
+              "        w.setNavigationBarColor(bg);\n"
+              "        if (!dark && android.os.Build.VERSION.SDK_INT >= 23) {\n"
+              "            w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);\n"
+              "        }\n"
+              "    }\n\n"
+              "    private void loadContent()"
+          )
           s, n = re.subn(pattern, replacement, s, count=1)
           if n != 1:
               raise SystemExit('configureSystemBars patch failed')
 
           old_padding = '        root.setPadding(dp(16), dp(10), dp(16), dp(10));'
-          new_padding = '''        root.setPadding(dp(16), dp(10), dp(16), dp(10));
-        if (android.os.Build.VERSION.SDK_INT >= 20) {
-            root.setOnApplyWindowInsetsListener((v, insets) -> {
-                int topInset = insets.getSystemWindowInsetTop();
-                v.setPadding(dp(16), dp(10) + topInset, dp(16), dp(10));
-                return insets;
-            });
-        }'''
+          new_padding = (
+              "        root.setPadding(dp(16), dp(10), dp(16), dp(10));\n"
+              "        if (android.os.Build.VERSION.SDK_INT >= 20) {\n"
+              "            root.setOnApplyWindowInsetsListener((v, insets) -> {\n"
+              "                int topInset = insets.getSystemWindowInsetTop();\n"
+              "                v.setPadding(dp(16), dp(10) + topInset, dp(16), dp(10));\n"
+              "                return insets;\n"
+              "            });\n"
+              "        }"
+          )
           if old_padding not in s:
               raise SystemExit('root padding patch point not found')
           s = s.replace(old_padding, new_padding, 1)
 
           old_set = '        setContentView(root);\n        refreshAll();'
-          new_set = '''        setContentView(root);
-        if (android.os.Build.VERSION.SDK_INT >= 20) {
-            root.requestApplyInsets();
-        }
-        refreshAll();'''
+          new_set = (
+              "        setContentView(root);\n"
+              "        if (android.os.Build.VERSION.SDK_INT >= 20) {\n"
+              "            root.requestApplyInsets();\n"
+              "        }\n"
+              "        refreshAll();"
+          )
           if old_set not in s:
               raise SystemExit('setContentView patch point not found')
           s = s.replace(old_set, new_set, 1)
