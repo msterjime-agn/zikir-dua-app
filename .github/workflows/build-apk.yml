@@ -21,29 +21,28 @@ jobs:
           cat source_parts/content.b64.part* | tr -d '\n\r' | base64 -d > app/src/main/assets/content.json
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           p = Path('app/src/main/java/com/dost/zikirdua/MainActivity.java')
           s = p.read_text(encoding='utf-8')
           s = s.replace('import android.view.WindowInsetsController;\n', '')
-          old = '''        if (android.os.Build.VERSION.SDK_INT >= 30) {
-              WindowInsetsController c = w.getInsetsController();
-              if (c != null && !dark) {
-                  c.setSystemBarsAppearance(
-                          WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                          WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                  );
+
+          pattern = r'(?s)    private void configureSystemBars\(\) \{.*?\n    \}\n\n    private void loadContent\(\)'
+          replacement = '''    private void configureSystemBars() {
+              Window w = getWindow();
+              w.setStatusBarColor(bg);
+              w.setNavigationBarColor(bg);
+              if (!dark && android.os.Build.VERSION.SDK_INT >= 23) {
+                  w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
               }
-          } else if (!dark) {
-              w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
           }
-          '''
-          new = '''        if (!dark && android.os.Build.VERSION.SDK_INT >= 23) {
-              w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-          }
-          '''
-          if old not in s:
-              raise SystemExit('Compatibility block not found')
-          s = s.replace(old, new)
-          p.write_text(s, encoding='utf-8')
+
+          private void loadContent()'''
+
+          s2, n = re.subn(pattern, replacement, s, count=1)
+          if n != 1:
+              raise SystemExit('configureSystemBars patch failed')
+          p.write_text(s2, encoding='utf-8')
           PY
           test -s app/src/main/java/com/dost/zikirdua/MainActivity.java
           test -s app/src/main/assets/content.json
