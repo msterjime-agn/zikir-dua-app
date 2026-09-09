@@ -1,0 +1,53 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore app source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/java/com/dost/zikirdua app/src/main/assets
+          cat source_parts/MainActivity.b64.part* | tr -d '\n\r' | base64 -d > app/src/main/java/com/dost/zikirdua/MainActivity.java
+          cat source_parts/content.b64.part* | tr -d '\n\r' | base64 -d > app/src/main/assets/content.json
+          test -s app/src/main/java/com/dost/zikirdua/MainActivity.java
+          test -s app/src/main/assets/content.json
+          python3 -m json.tool app/src/main/assets/content.json >/dev/null
+          echo "MainActivity bytes: $(wc -c < app/src/main/java/com/dost/zikirdua/MainActivity.java)"
+          echo "content.json bytes: $(wc -c < app/src/main/assets/content.json)"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZikirDua-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
