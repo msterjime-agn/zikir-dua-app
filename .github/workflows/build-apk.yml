@@ -1,106 +1,32 @@
-name: Build Android APK
+name: Build APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main", "master" ]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore and patch app source
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p app/src/main/java/com/dost/zikirdua app/src/main/assets
-          cat source_parts/MainActivity.b64.part* | tr -d '\n\r' | base64 -d > app/src/main/java/com/dost/zikirdua/MainActivity.java
-          cat source_parts/content.b64.part* | tr -d '\n\r' | base64 -d > app/src/main/assets/content.json
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path('app/src/main/java/com/dost/zikirdua/MainActivity.java')
-          s = p.read_text(encoding='utf-8')
-          s = s.replace('import android.view.WindowInsetsController;\n', '')
-
-          pattern = r'(?s)    private void configureSystemBars\(\) \{.*?\n    \}\n\n    private void loadContent\(\)'
-          replacement = (
-              "    private void configureSystemBars() {\n"
-              "        Window w = getWindow();\n"
-              "        w.setStatusBarColor(bg);\n"
-              "        w.setNavigationBarColor(bg);\n"
-              "        if (!dark && android.os.Build.VERSION.SDK_INT >= 23) {\n"
-              "            w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);\n"
-              "        }\n"
-              "    }\n\n"
-              "    private void loadContent()"
-          )
-          s, n = re.subn(pattern, replacement, s, count=1)
-          if n != 1:
-              raise SystemExit('configureSystemBars patch failed')
-
-          old_padding = '        root.setPadding(dp(16), dp(10), dp(16), dp(10));'
-          new_padding = (
-              "        root.setPadding(dp(16), dp(10), dp(16), dp(10));\n"
-              "        if (android.os.Build.VERSION.SDK_INT >= 20) {\n"
-              "            root.setOnApplyWindowInsetsListener((v, insets) -> {\n"
-              "                int topInset = insets.getSystemWindowInsetTop();\n"
-              "                v.setPadding(dp(16), dp(10) + topInset, dp(16), dp(10));\n"
-              "                return insets;\n"
-              "            });\n"
-              "        }"
-          )
-          if old_padding not in s:
-              raise SystemExit('root padding patch point not found')
-          s = s.replace(old_padding, new_padding, 1)
-
-          old_set = '        setContentView(root);\n        refreshAll();'
-          new_set = (
-              "        setContentView(root);\n"
-              "        if (android.os.Build.VERSION.SDK_INT >= 20) {\n"
-              "            root.requestApplyInsets();\n"
-              "        }\n"
-              "        refreshAll();"
-          )
-          if old_set not in s:
-              raise SystemExit('setContentView patch point not found')
-          s = s.replace(old_set, new_set, 1)
-
-          p.write_text(s, encoding='utf-8')
-          PY
-          test -s app/src/main/java/com/dost/zikirdua/MainActivity.java
-          test -s app/src/main/assets/content.json
-          ! grep -q "WindowInsetsController" app/src/main/java/com/dost/zikirdua/MainActivity.java
-          grep -q "setOnApplyWindowInsetsListener" app/src/main/java/com/dost/zikirdua/MainActivity.java
-          python3 -m json.tool app/src/main/assets/content.json >/dev/null
-
-      - name: Set up Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
           java-version: '17'
+          distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ZikirDua-v1.2-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: zikir-dua-apk
+          path: app/build/outputs/apk/debug/*.apk
