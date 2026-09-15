@@ -1,5 +1,6 @@
 package com.msterjime.zikirdua
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -32,6 +35,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,10 +45,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.abs
+import kotlin.math.acos
+import kotlin.math.asin
+import kotlin.math.atan
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.tan
 
 private val DeepGreen = Color(0xFF173F35)
 private val Green = Color(0xFF2F6B57)
@@ -62,6 +84,184 @@ private val AppColors = lightColorScheme(
     onBackground = Ink,
     onSurface = Ink
 )
+
+private data class City(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double
+)
+
+private val Cities = listOf(
+    City("Köneürgenç", 42.3271, 59.1545),
+    City("Daşoguz", 41.8363, 59.9666),
+    City("Aşgabat", 37.9601, 58.3261),
+    City("Türkmenabat", 39.0733, 63.5787),
+    City("Mary", 37.5928, 61.8303)
+)
+
+private data class PrayerTimes(
+    val fajr: LocalTime,
+    val sunrise: LocalTime,
+    val dhuhr: LocalTime,
+    val asr: LocalTime,
+    val maghrib: LocalTime,
+    val isha: LocalTime
+)
+
+private data class NextPrayer(
+    val name: String,
+    val date: LocalDate,
+    val time: LocalTime
+)
+
+private data class PrayerRow(
+    val name: String,
+    val time: LocalTime
+)
+
+private val TurkmenistanZone = ZoneOffset.ofHours(5)
+private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+private fun degreesToRadians(value: Double) = Math.toRadians(value)
+private fun radiansToDegrees(value: Double) = Math.toDegrees(value)
+private fun fixAngle(value: Double): Double = ((value % 360.0) + 360.0) % 360.0
+private fun fixHour(value: Double): Double = ((value % 24.0) + 24.0) % 24.0
+
+private fun julianDate(year: Int, month: Int, day: Int): Double {
+    var y = year
+    var m = month
+    if (m <= 2) {
+        y -= 1
+        m += 12
+    }
+    val a = floor(y / 100.0)
+    val b = 2 - a + floor(a / 4.0)
+    return floor(365.25 * (y + 4716)) + floor(30.6001 * (m + 1)) + day + b - 1524.5
+}
+
+private fun sunPosition(jd: Double): Pair<Double, Double> {
+    val d = jd - 2451545.0
+    val g = fixAngle(357.529 + 0.98560028 * d)
+    val q = fixAngle(280.459 + 0.98564736 * d)
+    val l = fixAngle(q + 1.915 * sin(degreesToRadians(g)) + 0.020 * sin(degreesToRadians(2 * g)))
+    val e = 23.439 - 0.00000036 * d
+
+    val declination = radiansToDegrees(
+        asin(sin(degreesToRadians(e)) * sin(degreesToRadians(l)))
+    )
+
+    var rightAscension = radiansToDegrees(
+        atan2(
+            cos(degreesToRadians(e)) * sin(degreesToRadians(l)),
+            cos(degreesToRadians(l))
+        )
+    ) / 15.0
+
+    rightAscension = fixHour(rightAscension - q / 15.0) + q / 15.0
+    val equation = q / 15.0 - rightAscension
+    return declination to equation
+}
+
+private fun doubleHourToLocalTime(value: Double): LocalTime {
+    val normalized = fixHour(value)
+    var totalMinutes = (normalized * 60.0).roundToInt()
+    totalMinutes %= 24 * 60
+    if (totalMinutes < 0) totalMinutes += 24 * 60
+    return LocalTime.of(totalMinutes / 60, totalMinutes % 60)
+}
+
+private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
+    val jDate = julianDate(date.year, date.monthValue, date.dayOfMonth) - city.longitude / (15.0 * 24.0)
+
+    fun midDay(time: Double): Double {
+        val equation = sunPosition(jDate + time).second
+        return fixHour(12.0 - equation)
+    }
+
+    fun computeTime(angle: Double, time: Double): Double {
+        val declination = sunPosition(jDate + time).first
+        val noon = midDay(time)
+        val numerator = -sin(degreesToRadians(angle)) -
+            sin(degreesToRadians(declination)) * sin(degreesToRadians(city.latitude))
+        val denominator = cos(degreesToRadians(declination)) * cos(degreesToRadians(city.latitude))
+        val ratio = (numerator / denominator).coerceIn(-1.0, 1.0)
+        val delta = radiansToDegrees(acos(ratio)) / 15.0
+        return noon + if (angle > 90.0) -delta else delta
+    }
+
+    fun asrTime(factor: Double, time: Double): Double {
+        val declination = sunPosition(jDate + time).first
+        val angle = -radiansToDegrees(
+            atan(
+                1.0 / (factor + tan(degreesToRadians(abs(city.latitude - declination))))
+            )
+        )
+        return computeTime(angle, time)
+    }
+
+    var fajr = 5.0
+    var sunrise = 6.0
+    var dhuhr = 12.0
+    var asr = 13.0
+    var maghrib = 18.0
+    var isha = 18.0
+
+    repeat(2) {
+        fajr = computeTime(180.0 - 18.0, fajr / 24.0)
+        sunrise = computeTime(180.0 - 0.833, sunrise / 24.0)
+        dhuhr = midDay(dhuhr / 24.0)
+        asr = asrTime(1.0, asr / 24.0)
+        maghrib = computeTime(0.833, maghrib / 24.0)
+        isha = computeTime(17.0, isha / 24.0)
+    }
+
+    val offset = 5.0 - city.longitude / 15.0
+    fajr += offset
+    sunrise += offset
+    dhuhr += offset
+    asr += offset
+    maghrib += offset
+    isha += offset
+
+    return PrayerTimes(
+        fajr = doubleHourToLocalTime(fajr),
+        sunrise = doubleHourToLocalTime(sunrise),
+        dhuhr = doubleHourToLocalTime(dhuhr),
+        asr = doubleHourToLocalTime(asr),
+        maghrib = doubleHourToLocalTime(maghrib),
+        isha = doubleHourToLocalTime(isha)
+    )
+}
+
+private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): NextPrayer {
+    val todayPrayers = listOf(
+        "Фаджр" to today.fajr,
+        "Зухр" to today.dhuhr,
+        "Аср" to today.asr,
+        "Магриб" to today.maghrib,
+        "Иша" to today.isha
+    )
+
+    todayPrayers.forEach { (name, time) ->
+        val candidate = ZonedDateTime.of(now.toLocalDate(), time, TurkmenistanZone)
+        if (candidate.isAfter(now)) {
+            return NextPrayer(name, now.toLocalDate(), time)
+        }
+    }
+
+    val tomorrowDate = now.toLocalDate().plusDays(1)
+    val tomorrow = calculatePrayerTimes(tomorrowDate, city)
+    return NextPrayer("Фаджр", tomorrowDate, tomorrow.fajr)
+}
+
+private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
+    val nextDateTime = ZonedDateTime.of(next.date, next.time, TurkmenistanZone)
+    val seconds = Duration.between(now, nextDateTime).seconds.coerceAtLeast(0)
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val secs = seconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, secs)
+}
 
 enum class AppTab(val title: String, val symbol: String) {
     HOME("Главная", "⌂"),
@@ -85,7 +285,34 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun ZikirDuaApp() {
+    val context = LocalContext.current
+    val preferences = remember {
+        context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+    }
+    val savedCityName = remember { preferences.getString("city", "Köneürgenç") ?: "Köneürgenç" }
+    var selectedCity by remember {
+        mutableStateOf(Cities.firstOrNull { it.name == savedCityName } ?: Cities.first())
+    }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
+    var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = ZonedDateTime.now(TurkmenistanZone)
+            delay(1000)
+        }
+    }
+
+    val prayerTimes = remember(selectedCity, now.toLocalDate()) {
+        calculatePrayerTimes(now.toLocalDate(), selectedCity)
+    }
+    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes)
+    val countdown = countdownText(now, nextPrayer)
+
+    fun chooseCity(city: City) {
+        selectedCity = city
+        preferences.edit().putString("city", city.name).apply()
+    }
 
     Scaffold(
         modifier = Modifier
@@ -121,11 +348,19 @@ private fun ZikirDuaApp() {
         ) {
             when (selectedTab) {
                 AppTab.HOME -> HomeScreen(
+                    city = selectedCity,
+                    nextPrayer = nextPrayer,
+                    countdown = countdown,
                     onPrayer = { selectedTab = AppTab.PRAYER },
                     onDhikr = { selectedTab = AppTab.DHIKR },
                     onTasbih = { selectedTab = AppTab.TASBIH }
                 )
-                AppTab.PRAYER -> PrayerScreen()
+                AppTab.PRAYER -> PrayerScreen(
+                    city = selectedCity,
+                    prayerTimes = prayerTimes,
+                    nextPrayerName = nextPrayer.name,
+                    onCitySelected = ::chooseCity
+                )
                 AppTab.DHIKR -> DhikrScreen()
                 AppTab.TASBIH -> TasbihScreen()
             }
@@ -135,6 +370,9 @@ private fun ZikirDuaApp() {
 
 @Composable
 private fun HomeScreen(
+    city: City,
+    nextPrayer: NextPrayer,
+    countdown: String,
     onPrayer: () -> Unit,
     onDhikr: () -> Unit,
     onTasbih: () -> Unit
@@ -159,7 +397,7 @@ private fun HomeScreen(
                 color = DeepGreen
             )
             Text(
-                text = "Namaz Edition • v2.1",
+                text = "Namaz Edition • v2.2",
                 fontSize = 14.sp,
                 color = Green
             )
@@ -175,15 +413,21 @@ private fun HomeScreen(
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("📍 Köneürgenç", color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp)
+                    Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
                     Text("Следующий намаз", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
-                    Text("—", color = Gold, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                    Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "Точное время подключим следующим этапом",
-                        color = Color.White.copy(alpha = 0.78f),
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center
+                        nextPrayer.time.format(TimeFormatter),
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Осталось $countdown",
+                        color = Color.White.copy(alpha = 0.82f),
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -192,19 +436,10 @@ private fun HomeScreen(
         item {
             Text("Быстрый доступ", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink)
         }
-
-        item {
-            QuickAction("☾", "Время намаза", "Фаджр • Зухр • Аср • Магриб • Иша", onPrayer)
-        }
-        item {
-            QuickAction("☀", "Утренний азкар", "Чтение после Фаджра", onDhikr)
-        }
-        item {
-            QuickAction("☽", "Вечерний азкар", "Чтение после Магриба", onDhikr)
-        }
-        item {
-            QuickAction("●", "Тасбих", "Счётчик 33 / 100", onTasbih)
-        }
+        item { QuickAction("☾", "Время намаза", "Фаджр • Зухр • Аср • Магриб • Иша", onPrayer) }
+        item { QuickAction("☀", "Утренний азкар", "Чтение после Фаджра", onDhikr) }
+        item { QuickAction("☽", "Вечерний азкар", "Чтение после Магриба", onDhikr) }
+        item { QuickAction("●", "Тасбих", "Счётчик 33 / 100", onTasbih) }
         item { Spacer(Modifier.height(18.dp)) }
     }
 }
@@ -238,17 +473,21 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
     }
 }
 
-private data class PrayerRow(val name: String, val time: String)
-
 @Composable
-private fun PrayerScreen() {
+private fun PrayerScreen(
+    city: City,
+    prayerTimes: PrayerTimes,
+    nextPrayerName: String,
+    onCitySelected: (City) -> Unit
+) {
+    var cityMenuOpen by remember { mutableStateOf(false) }
     val prayers = listOf(
-        PrayerRow("Фаджр", "—"),
-        PrayerRow("Восход", "—"),
-        PrayerRow("Зухр", "—"),
-        PrayerRow("Аср", "—"),
-        PrayerRow("Магриб", "—"),
-        PrayerRow("Иша", "—")
+        PrayerRow("Фаджр", prayerTimes.fajr),
+        PrayerRow("Восход", prayerTimes.sunrise),
+        PrayerRow("Зухр", prayerTimes.dhuhr),
+        PrayerRow("Аср", prayerTimes.asr),
+        PrayerRow("Магриб", prayerTimes.maghrib),
+        PrayerRow("Иша", prayerTimes.isha)
     )
 
     LazyColumn(
@@ -260,7 +499,28 @@ private fun PrayerScreen() {
         item { Spacer(Modifier.height(10.dp)) }
         item {
             Text("Время намаза", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text("📍 Köneürgenç", color = Green, fontSize = 14.sp)
+            Box {
+                Button(
+                    onClick = { cityMenuOpen = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                ) {
+                    Text("📍 ${city.name}  ▾")
+                }
+                DropdownMenu(
+                    expanded = cityMenuOpen,
+                    onDismissRequest = { cityMenuOpen = false }
+                ) {
+                    Cities.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.name) },
+                            onClick = {
+                                onCitySelected(option)
+                                cityMenuOpen = false
+                            }
+                        )
+                    }
+                }
+            }
         }
         item {
             Card(
@@ -269,7 +529,7 @@ private fun PrayerScreen() {
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    "Расчёт времени пока не включён. Здесь будут точные времена после подключения метода ТКМ.",
+                    "Офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Это расчётное время; официальный метод Муфтията ТКМ подключим отдельно.",
                     modifier = Modifier.padding(14.dp),
                     fontSize = 13.sp,
                     color = Color(0xFF6B5722)
@@ -277,10 +537,13 @@ private fun PrayerScreen() {
             }
         }
         items(prayers) { prayer ->
+            val isNext = prayer.name == nextPrayerName
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isNext) SoftGreen else Color.White
+                )
             ) {
                 Row(
                     modifier = Modifier
@@ -289,8 +552,18 @@ private fun PrayerScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                    Text(prayer.time, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Green)
+                    Column {
+                        Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                        if (isNext) {
+                            Text("Следующий", fontSize = 11.sp, color = Green)
+                        }
+                    }
+                    Text(
+                        prayer.time.format(TimeFormatter),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isNext) DeepGreen else Green
+                    )
                 }
             }
         }
