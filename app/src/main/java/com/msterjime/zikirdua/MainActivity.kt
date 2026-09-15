@@ -1,4 +1,4 @@
-package com.dost.zikirdua
+package com.msterjime.zikirdua
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
