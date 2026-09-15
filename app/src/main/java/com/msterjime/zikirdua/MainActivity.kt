@@ -86,17 +86,59 @@ private val AppColors = lightColorScheme(
 )
 
 private data class City(
+    val region: String,
     val name: String,
     val latitude: Double,
     val longitude: Double
 )
 
 private val Cities = listOf(
-    City("Köneürgenç", 42.3271, 59.1545),
-    City("Daşoguz", 41.8363, 59.9666),
-    City("Aşgabat", 37.9601, 58.3261),
-    City("Türkmenabat", 39.0733, 63.5787),
-    City("Mary", 37.5928, 61.8303)
+    City("Aşgabat", "Aşgabat", 37.9601, 58.3261),
+    City("Arkadag", "Arkadag", 38.0550, 58.2000),
+
+    City("Ahal", "Änew", 37.8875, 58.5160),
+    City("Ahal", "Gökdepe", 38.1600, 57.9660),
+    City("Ahal", "Bäherden", 38.4360, 57.4310),
+    City("Ahal", "Tejen", 37.3833, 60.5000),
+    City("Ahal", "Kaka", 37.3480, 59.6140),
+    City("Ahal", "Sarahs", 36.5350, 61.2070),
+
+    City("Balkan", "Balkanabat", 39.5108, 54.3671),
+    City("Balkan", "Türkmenbaşy", 40.0230, 52.9690),
+    City("Balkan", "Bereket", 39.2440, 55.5150),
+    City("Balkan", "Gyzylarbat", 38.9750, 56.2770),
+    City("Balkan", "Hazar", 39.4100, 53.1300),
+    City("Balkan", "Esenguly", 37.4700, 53.9700),
+
+    City("Daşoguz", "Daşoguz", 41.8363, 59.9666),
+    City("Daşoguz", "Köneürgenç", 42.3271, 59.1545),
+    City("Daşoguz", "Akdepe", 42.0550, 59.3780),
+    City("Daşoguz", "Boldumsaz", 42.1280, 59.6710),
+    City("Daşoguz", "Görogly", 41.6500, 59.9200),
+    City("Daşoguz", "Şabat", 41.6500, 59.3600),
+    City("Daşoguz", "Gubadag", 41.8300, 58.5700),
+    City("Daşoguz", "Andalyp", 42.0000, 59.3000),
+
+    City("Lebap", "Türkmenabat", 39.0733, 63.5787),
+    City("Lebap", "Kerki", 37.8350, 65.2100),
+    City("Lebap", "Köýtendag", 37.5000, 66.0000),
+    City("Lebap", "Magdanly", 37.8130, 66.0000),
+    City("Lebap", "Hojambaz", 38.0450, 64.9300),
+    City("Lebap", "Farap", 39.1700, 63.6100),
+    City("Lebap", "Döwletli", 37.9800, 65.7700),
+    City("Lebap", "Garabekewül", 38.9440, 64.0800),
+    City("Lebap", "Saýat", 38.7830, 63.8800),
+    City("Lebap", "Darganata", 40.4700, 62.2800),
+
+    City("Mary", "Mary", 37.5928, 61.8303),
+    City("Mary", "Baýramaly", 37.6180, 62.1670),
+    City("Mary", "Ýolöten", 37.2980, 62.3590),
+    City("Mary", "Murgap", 37.4960, 61.9750),
+    City("Mary", "Sakarçäge", 37.5830, 61.6500),
+    City("Mary", "Wekilbazar", 37.7600, 62.0300),
+    City("Mary", "Tagtabazar", 35.9530, 62.9130),
+    City("Mary", "Serhetabat", 35.2790, 62.3430),
+    City("Mary", "Parahat (Oguzhan)", 37.3000, 61.0000)
 )
 
 private data class PrayerTimes(
@@ -114,10 +156,7 @@ private data class NextPrayer(
     val time: LocalTime
 )
 
-private data class PrayerRow(
-    val name: String,
-    val time: LocalTime
-)
+private data class PrayerRow(val name: String, val time: LocalTime)
 
 private val TurkmenistanZone = ZoneOffset.ofHours(5)
 private val TimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -145,18 +184,10 @@ private fun sunPosition(jd: Double): Pair<Double, Double> {
     val q = fixAngle(280.459 + 0.98564736 * d)
     val l = fixAngle(q + 1.915 * sin(degreesToRadians(g)) + 0.020 * sin(degreesToRadians(2 * g)))
     val e = 23.439 - 0.00000036 * d
-
-    val declination = radiansToDegrees(
-        asin(sin(degreesToRadians(e)) * sin(degreesToRadians(l)))
-    )
-
+    val declination = radiansToDegrees(asin(sin(degreesToRadians(e)) * sin(degreesToRadians(l))))
     var rightAscension = radiansToDegrees(
-        atan2(
-            cos(degreesToRadians(e)) * sin(degreesToRadians(l)),
-            cos(degreesToRadians(l))
-        )
+        atan2(cos(degreesToRadians(e)) * sin(degreesToRadians(l)), cos(degreesToRadians(l)))
     ) / 15.0
-
     rightAscension = fixHour(rightAscension - q / 15.0) + q / 15.0
     val equation = q / 15.0 - rightAscension
     return declination to equation
@@ -192,9 +223,7 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     fun asrTime(factor: Double, time: Double): Double {
         val declination = sunPosition(jDate + time).first
         val angle = -radiansToDegrees(
-            atan(
-                1.0 / (factor + tan(degreesToRadians(abs(city.latitude - declination))))
-            )
+            atan(1.0 / (factor + tan(degreesToRadians(abs(city.latitude - declination)))))
         )
         return computeTime(angle, time)
     }
@@ -207,8 +236,8 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     var isha = 18.0
 
     repeat(2) {
-        fajr = computeTime(180.0 - 18.0, fajr / 24.0)
-        sunrise = computeTime(180.0 - 0.833, sunrise / 24.0)
+        fajr = computeTime(162.0, fajr / 24.0)
+        sunrise = computeTime(179.167, sunrise / 24.0)
         dhuhr = midDay(dhuhr / 24.0)
         asr = asrTime(1.0, asr / 24.0)
         maghrib = computeTime(0.833, maghrib / 24.0)
@@ -224,12 +253,12 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     isha += offset
 
     return PrayerTimes(
-        fajr = doubleHourToLocalTime(fajr),
-        sunrise = doubleHourToLocalTime(sunrise),
-        dhuhr = doubleHourToLocalTime(dhuhr),
-        asr = doubleHourToLocalTime(asr),
-        maghrib = doubleHourToLocalTime(maghrib),
-        isha = doubleHourToLocalTime(isha)
+        doubleHourToLocalTime(fajr),
+        doubleHourToLocalTime(sunrise),
+        doubleHourToLocalTime(dhuhr),
+        doubleHourToLocalTime(asr),
+        doubleHourToLocalTime(maghrib),
+        doubleHourToLocalTime(isha)
     )
 }
 
@@ -241,14 +270,10 @@ private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): 
         "Магриб" to today.maghrib,
         "Иша" to today.isha
     )
-
     todayPrayers.forEach { (name, time) ->
         val candidate = ZonedDateTime.of(now.toLocalDate(), time, TurkmenistanZone)
-        if (candidate.isAfter(now)) {
-            return NextPrayer(name, now.toLocalDate(), time)
-        }
+        if (candidate.isAfter(now)) return NextPrayer(name, now.toLocalDate(), time)
     }
-
     val tomorrowDate = now.toLocalDate().plusDays(1)
     val tomorrow = calculatePrayerTimes(tomorrowDate, city)
     return NextPrayer("Фаджр", tomorrowDate, tomorrow.fajr)
@@ -286,12 +311,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun ZikirDuaApp() {
     val context = LocalContext.current
-    val preferences = remember {
-        context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
-    }
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
     val savedCityName = remember { preferences.getString("city", "Köneürgenç") ?: "Köneürgenç" }
     var selectedCity by remember {
-        mutableStateOf(Cities.firstOrNull { it.name == savedCityName } ?: Cities.first())
+        mutableStateOf(Cities.firstOrNull { it.name == savedCityName } ?: Cities.first { it.name == "Köneürgenç" })
     }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
     var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }
@@ -315,25 +338,16 @@ private fun ZikirDuaApp() {
     }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
         containerColor = Ivory,
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.navigationBarsPadding(),
-                containerColor = Color.White
-            ) {
+            NavigationBar(modifier = Modifier.navigationBarsPadding(), containerColor = Color.White) {
                 AppTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
                         icon = {
-                            Text(
-                                text = tab.symbol,
-                                fontSize = 22.sp,
-                                fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
-                            )
+                            Text(tab.symbol, fontSize = 22.sp, fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal)
                         },
                         label = { Text(tab.title, fontSize = 11.sp) }
                     )
@@ -341,26 +355,10 @@ private fun ZikirDuaApp() {
             }
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when (selectedTab) {
-                AppTab.HOME -> HomeScreen(
-                    city = selectedCity,
-                    nextPrayer = nextPrayer,
-                    countdown = countdown,
-                    onPrayer = { selectedTab = AppTab.PRAYER },
-                    onDhikr = { selectedTab = AppTab.DHIKR },
-                    onTasbih = { selectedTab = AppTab.TASBIH }
-                )
-                AppTab.PRAYER -> PrayerScreen(
-                    city = selectedCity,
-                    prayerTimes = prayerTimes,
-                    nextPrayerName = nextPrayer.name,
-                    onCitySelected = ::chooseCity
-                )
+                AppTab.HOME -> HomeScreen(selectedCity, nextPrayer, countdown, { selectedTab = AppTab.PRAYER }, { selectedTab = AppTab.DHIKR }, { selectedTab = AppTab.TASBIH })
+                AppTab.PRAYER -> PrayerScreen(selectedCity, prayerTimes, nextPrayer.name, ::chooseCity)
                 AppTab.DHIKR -> DhikrScreen()
                 AppTab.TASBIH -> TasbihScreen()
             }
@@ -378,64 +376,29 @@ private fun HomeScreen(
     onTasbih: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFF0F5F1), Ivory, Ivory)
-                )
-            )
-            .padding(horizontal = 18.dp),
+        modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory))).padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text(
-                text = "Zikir & Dua",
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                color = DeepGreen
-            )
-            Text(
-                text = "Namaz Edition • v2.2",
-                fontSize = 14.sp,
-                color = Green
-            )
+            Text("Zikir & Dua", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text("Namaz Edition • v2.3", fontSize = 14.sp, color = Green)
         }
-
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = DeepGreen)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
+                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
+                    Text(city.region, color = Color.White.copy(alpha = 0.60f), fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
                     Text("Следующий намаз", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
                     Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        nextPrayer.time.format(TimeFormatter),
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Осталось $countdown",
-                        color = Color.White.copy(alpha = 0.82f),
-                        fontSize = 14.sp
-                    )
+                    Text("Осталось $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
                 }
             }
         }
-
-        item {
-            Text("Быстрый доступ", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink)
-        }
+        item { Text("Быстрый доступ", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
         item { QuickAction("☾", "Время намаза", "Фаджр • Зухр • Аср • Магриб • Иша", onPrayer) }
         item { QuickAction("☀", "Утренний азкар", "Чтение после Фаджра", onDhikr) }
         item { QuickAction("☽", "Вечерний азкар", "Чтение после Магриба", onDhikr) }
@@ -446,26 +409,12 @@ private fun HomeScreen(
 
 @Composable
 private fun QuickAction(symbol: String, title: String, subtitle: String, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(SoftGreen, RoundedCornerShape(15.dp)),
-                contentAlignment = Alignment.Center
-            ) {
+    Card(Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(48.dp).background(SoftGreen, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
                 Text(symbol, fontSize = 24.sp, color = DeepGreen)
             }
-            Column(modifier = Modifier.padding(start = 14.dp)) {
+            Column(Modifier.padding(start = 14.dp)) {
                 Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, fontSize = 13.sp, color = Color.Gray)
             }
@@ -474,96 +423,48 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 }
 
 @Composable
-private fun PrayerScreen(
-    city: City,
-    prayerTimes: PrayerTimes,
-    nextPrayerName: String,
-    onCitySelected: (City) -> Unit
-) {
+private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: String, onCitySelected: (City) -> Unit) {
     var cityMenuOpen by remember { mutableStateOf(false) }
     val prayers = listOf(
-        PrayerRow("Фаджр", prayerTimes.fajr),
-        PrayerRow("Восход", prayerTimes.sunrise),
-        PrayerRow("Зухр", prayerTimes.dhuhr),
-        PrayerRow("Аср", prayerTimes.asr),
-        PrayerRow("Магриб", prayerTimes.maghrib),
-        PrayerRow("Иша", prayerTimes.isha)
+        PrayerRow("Фаджр", prayerTimes.fajr), PrayerRow("Восход", prayerTimes.sunrise), PrayerRow("Зухр", prayerTimes.dhuhr),
+        PrayerRow("Аср", prayerTimes.asr), PrayerRow("Магриб", prayerTimes.maghrib), PrayerRow("Иша", prayerTimes.isha)
     )
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
             Text("Время намаза", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Box {
-                Button(
-                    onClick = { cityMenuOpen = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
-                ) {
+                Button(onClick = { cityMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
                     Text("📍 ${city.name}  ▾")
                 }
-                DropdownMenu(
-                    expanded = cityMenuOpen,
-                    onDismissRequest = { cityMenuOpen = false }
-                ) {
+                DropdownMenu(expanded = cityMenuOpen, onDismissRequest = { cityMenuOpen = false }) {
                     Cities.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(option.name) },
-                            onClick = {
-                                onCitySelected(option)
-                                cityMenuOpen = false
-                            }
+                            text = { Text("${option.region} • ${option.name}") },
+                            onClick = { onCitySelected(option); cityMenuOpen = false }
                         )
                     }
                 }
             }
         }
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)), shape = RoundedCornerShape(16.dp)) {
                 Text(
-                    "Офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Это расчётное время; официальный метод Муфтията ТКМ подключим отдельно.",
-                    modifier = Modifier.padding(14.dp),
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B5722)
+                    "Сейчас показан резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията ТКМ — обязательный основной режим и подключается следующим этапом.",
+                    modifier = Modifier.padding(14.dp), fontSize = 13.sp, color = Color(0xFF6B5722)
                 )
             }
         }
         items(prayers) { prayer ->
             val isNext = prayer.name == nextPrayerName
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isNext) SoftGreen else Color.White
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(17.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = if (isNext) SoftGreen else Color.White)) {
+                Row(Modifier.fillMaxWidth().padding(17.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        if (isNext) {
-                            Text("Следующий", fontSize = 11.sp, color = Green)
-                        }
+                        if (isNext) Text("Следующий", fontSize = 11.sp, color = Green)
                     }
-                    Text(
-                        prayer.time.format(TimeFormatter),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isNext) DeepGreen else Green
-                    )
+                    Text(prayer.time.format(TimeFormatter), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (isNext) DeepGreen else Green)
                 }
             }
         }
@@ -573,12 +474,7 @@ private fun PrayerScreen(
 
 @Composable
 private fun DhikrScreen() {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
             Text("Зикр и дуа", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
@@ -594,14 +490,10 @@ private fun DhikrScreen() {
 
 @Composable
 private fun SectionCard(symbol: String, title: String, subtitle: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(symbol, fontSize = 27.sp, color = Gold)
-            Column(modifier = Modifier.padding(start = 15.dp)) {
+            Column(Modifier.padding(start = 15.dp)) {
                 Text(title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
                 Text(subtitle, color = Color.Gray, fontSize = 13.sp)
             }
@@ -614,50 +506,26 @@ private fun TasbihScreen() {
     var count by remember { mutableIntStateOf(0) }
     var target by remember { mutableIntStateOf(33) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(Modifier.fillMaxSize().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(10.dp))
         Text("Тасбих", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
         Text("Цель: $target", color = Green)
         Spacer(Modifier.height(28.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = DeepGreen)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 36.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
+            Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
                 Text("из $target", color = Color.White.copy(alpha = 0.75f))
                 Spacer(Modifier.height(22.dp))
-                Button(
-                    onClick = { count += 1 },
-                    modifier = Modifier.size(112.dp),
-                    shape = RoundedCornerShape(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
-                ) {
+                Button(onClick = { count += 1 }, modifier = Modifier.size(112.dp), shape = RoundedCornerShape(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) {
                     Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
-
         Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = { target = 33; count = 0 }) { Text("33") }
             Button(onClick = { target = 100; count = 0 }) { Text("100") }
-            Button(
-                onClick = { count = 0 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
-            ) { Text("Сброс") }
+            Button(onClick = { count = 0 }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)) { Text("Сброс") }
         }
     }
 }
