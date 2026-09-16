@@ -773,19 +773,10 @@ private fun HomeScreen(
     onTasbih: () -> Unit
 ) {
     var languageMenuOpen by remember { mutableStateOf(false) }
-
-    val prayers = listOf(
-        "☾ ${prayerLabels(language).fajr}" to prayerTimes.fajr,
-        "☀ ${prayerLabels(language).sunrise}" to prayerTimes.sunrise,
-        "☼ ${prayerLabels(language).dhuhr}" to prayerTimes.dhuhr,
-        "◉ ${prayerLabels(language).asr}" to prayerTimes.asr,
-        "🌅 ${prayerLabels(language).maghrib}" to prayerTimes.maghrib,
-        "☽ ${prayerLabels(language).isha}" to prayerTimes.isha
-    )
+    val labels = prayerLabels(language)
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -794,63 +785,55 @@ private fun HomeScreen(
         item {
             Text("NAMAZ WAGTY", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Text("Zikir & Dogalar • v1.0", fontSize = 14.sp, color = Green)
-            Spacer(Modifier.height(8.dp))
             Box {
-                Button(
-                    onClick = { languageMenuOpen = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
-                ) {
-                    Text("🌐 ${language.label}  ▾", fontSize = 12.sp)
+                Button(onClick = { languageMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
+                    Text("🌐 ${language.label} ▾")
                 }
                 DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
                     AppLanguage.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option.label) },
-                            onClick = {
-                                onLanguageSelected(option)
-                                languageMenuOpen = false
-                            }
-                        )
+                        DropdownMenuItem(text = { Text(option.label) }, onClick = { onLanguageSelected(option); languageMenuOpen = false })
                     }
                 }
             }
         }
         item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = DeepGreen)
-            ) {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp)
-                    Text(regionLabel(city, language), color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = onAutoLocation,
-                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
-                    ) { Text("GPS") }
-                    Spacer(Modifier.height(14.dp))
-                    Text("🕌 ${text.nextPrayer}", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                    Text(nextPrayer.name, color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 21.sp)
-                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${prayers[0].first.takeLast(5)} ${prayers[0].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
-                        Text("${prayers[2].first.takeLast(5)} ${prayers[2].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
-                        Text("${prayers[5].first.takeLast(5)} ${prayers[5].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text("📍 ${city.name}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(regionLabel(city, language), color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+                        }
+                        Button(onClick = onAutoLocation, colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) { Text("GPS") }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text("🕌 ${text.nextPrayer}", color = Color.White.copy(alpha=.75f), fontSize=13.sp)
+                            Text(nextPrayer.name, color = Gold, fontSize=30.sp, fontWeight=FontWeight.Bold)
+                            Text(nextPrayer.time.format(TimeFormatter), color=Color.White, fontSize=25.sp)
+                            Text("${text.timeLeft}: $countdown", color=Color.White.copy(alpha=.75f), fontSize=13.sp)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("${labels.fajr} ${prayerTimes.fajr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
+                            Text("${labels.dhuhr} ${prayerTimes.dhuhr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
+                            Text("${labels.asr} ${prayerTimes.asr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
+                            Text("${labels.maghrib} ${prayerTimes.maghrib.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
+                            Text("${labels.isha} ${prayerTimes.isha.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                        Text("🌅 ${labels.sunrise} ${prayerTimes.sunrise.format(TimeFormatter)}", color=Color.White.copy(alpha=.85f), fontSize=11.sp)
+                        Text("🌇 ${labels.maghrib} ${prayerTimes.maghrib.format(TimeFormatter)}", color=Color.White.copy(alpha=.85f), fontSize=11.sp)
                     }
                 }
             }
         }
-        item { Text(text.quickAccess, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
+        item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
         item { QuickAction("☾", text.prayerTimes, text.prayerShortcut, onPrayer) }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
-        item { Spacer(Modifier.height(18.dp)) }
     }
 }
 
