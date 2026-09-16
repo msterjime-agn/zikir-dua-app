@@ -1,9 +1,17 @@
 package com.msterjime.zikirdua
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.os.Bundle
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -503,6 +511,55 @@ private fun tabTitle(tab: AppTab, text: UiText): String = when (tab) {
     AppTab.TASBIH -> text.tasbih
 }
 
+private fun nearestCity(latitude: Double, longitude: Double): City {
+    return Cities.minByOrNull { city ->
+        val result = FloatArray(1)
+        Location.distanceBetween(latitude, longitude, city.latitude, city.longitude, result)
+        result[0]
+    } ?: Cities.first { it.name == "Köneürgenç" }
+}
+
+private fun detectNearestCity(context: Context, onCityDetected: (City) -> Unit) {
+    val fineGranted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (!fineGranted && !coarseGranted) return
+
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val providers = buildList {
+        if (fineGranted && locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            add(LocationManager.GPS_PROVIDER)
+        }
+        if ((fineGranted || coarseGranted) && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            add(LocationManager.NETWORK_PROVIDER)
+        }
+    }
+    if (providers.isEmpty()) return
+
+    val lastLocation = providers
+        .mapNotNull { provider -> runCatching { locationManager.getLastKnownLocation(provider) }.getOrNull() }
+        .maxByOrNull { it.time }
+
+    if (lastLocation != null) {
+        onCityDetected(nearestCity(lastLocation.latitude, lastLocation.longitude))
+        return
+    }
+
+    val listener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            onCityDetected(nearestCity(location.latitude, location.longitude))
+        }
+
+        @Deprecated("Deprecated in Android")
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+        override fun onProviderEnabled(provider: String) = Unit
+        override fun onProviderDisabled(provider: String) = Unit
+    }
+
+    runCatching {
+        locationManager.requestSingleUpdate(providers.first(), listener, Looper.getMainLooper())
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -532,7 +589,44 @@ private fun ZikirDuaApp() {
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
     var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }
 
-    LaunchedEffect(Unit) {
+    fun chooseCity(city: City) {
+        selectedCity = city
+        preferences.edit().putString("city", city.name).apply()
+    }
+
+    fun chooseLanguage(newLanguage: AppLanguage) {
+        language = newLanguage
+        preferences.edit().putString("language", newLanguage.code).apply()
+    }
+
+    fun refreshLocation() {
+        detectNearestCity(context) { detectedCity -> chooseCity(detectedCity) }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) refreshLocation()
+    }
+
+    LaunchedEffect("auto_location") {
+        val fineGranted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (fineGranted || coarseGranted) {
+            refreshLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    LaunchedEffect("clock") {
         while (true) {
             now = ZonedDateTime.now(TurkmenistanZone)
             delay(1000)
@@ -546,16 +640,6 @@ private fun ZikirDuaApp() {
     }
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
-
-    fun chooseCity(city: City) {
-        selectedCity = city
-        preferences.edit().putString("city", city.name).apply()
-    }
-
-    fun chooseLanguage(newLanguage: AppLanguage) {
-        language = newLanguage
-        preferences.edit().putString("language", newLanguage.code).apply()
-    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
