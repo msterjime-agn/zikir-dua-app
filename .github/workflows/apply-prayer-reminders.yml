@@ -1,0 +1,404 @@
+name: Apply prayer reminder patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-prayer-reminders.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add prayer reminder notifications
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          main = Path('app/src/main/java/com/msterjime/zikirdua/MainActivity.kt')
+          text = main.read_text(encoding='utf-8')
+
+          if 'import android.os.Build\n' not in text:
+              text = text.replace('import android.os.Bundle\n', 'import android.os.Build\nimport android.os.Bundle\n', 1)
+
+          text = text.replace('counter = "Hasaplaýjy 33 / 100",', 'counter = "Hasaplaýjy • 7 / 11 / 33 / 100 / 1000 / ∞",')
+          text = text.replace('counter = "Счётчик 33 / 100",', 'counter = "Счётчик • 7 / 11 / 33 / 100 / 1000 / ∞",')
+          text = text.replace('counter = "Counter 33 / 100",', 'counter = "Counter • 7 / 11 / 33 / 100 / 1000 / ∞",')
+          text = text.replace('counter = "Sayaç 33 / 100",', 'counter = "Sayaç • 7 / 11 / 33 / 100 / 1000 / ∞",')
+
+          state_needle = '    var selectedTab by remember { mutableStateOf(AppTab.HOME) }\n    var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }\n'
+          state_add = state_needle + '    var reminderMinutes by remember { mutableIntStateOf(preferences.getInt("prayer_reminder_minutes", -1)) }\n'
+          if 'var reminderMinutes by remember' not in text:
+              if state_needle not in text:
+                  raise SystemExit('Reminder state insertion point not found')
+              text = text.replace(state_needle, state_add, 1)
+
+          launcher_needle = '''    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) refreshLocation()
+    }
+
+'''
+          launcher_add = launcher_needle + '''    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
+
+    fun changeReminderMinutes(value: Int) {
+        reminderMinutes = value
+        preferences.edit().putInt("prayer_reminder_minutes", value).apply()
+        if (
+            value >= 0 &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+'''
+          if 'fun changeReminderMinutes(value: Int)' not in text:
+              if launcher_needle not in text:
+                  raise SystemExit('Permission launcher insertion point not found')
+              text = text.replace(launcher_needle, launcher_add, 1)
+
+          schedule_needle = '    val countdown = countdownText(now, nextPrayer)\n\n'
+          schedule_block = schedule_needle + '''    LaunchedEffect(selectedCity, reminderMinutes, language, now.toLocalDate()) {
+        if (reminderMinutes < 0) {
+            cancelPrayerReminders(context)
+        } else {
+            val reminderDays = (0..13).map { offset ->
+                val date = now.toLocalDate().plusDays(offset.toLong())
+                val times = calculatePrayerTimes(date, selectedCity)
+                PrayerReminderDay(
+                    date = date,
+                    prayers = listOf(
+                        prayerNames.fajr to times.fajr,
+                        prayerNames.dhuhr to times.dhuhr,
+                        prayerNames.asr to times.asr,
+                        prayerNames.maghrib to times.maghrib,
+                        prayerNames.isha to times.isha
+                    )
+                )
+            }
+            schedulePrayerReminders(
+                context = context,
+                days = reminderDays,
+                minutesBefore = reminderMinutes,
+                languageCode = language.code,
+                cityName = selectedCity.name
+            )
+        }
+    }
+
+'''
+          if 'schedulePrayerReminders(' not in text:
+              if schedule_needle not in text:
+                  raise SystemExit('Reminder scheduling insertion point not found')
+              text = text.replace(schedule_needle, schedule_block, 1)
+
+          call_needle = '''                    language = language,
+                    onCitySelected = ::chooseCity
+                )'''
+          call_repl = '''                    language = language,
+                    reminderMinutes = reminderMinutes,
+                    onReminderMinutesChanged = ::changeReminderMinutes,
+                    onCitySelected = ::chooseCity
+                )'''
+          if 'onReminderMinutesChanged = ::changeReminderMinutes' not in text:
+              if call_needle not in text:
+                  raise SystemExit('PrayerScreen call insertion point not found')
+              text = text.replace(call_needle, call_repl, 1)
+
+          sig_needle = '''    labels: PrayerLabels,
+    language: AppLanguage,
+    onCitySelected: (City) -> Unit
+) {'''
+          sig_repl = '''    labels: PrayerLabels,
+    language: AppLanguage,
+    reminderMinutes: Int,
+    onReminderMinutesChanged: (Int) -> Unit,
+    onCitySelected: (City) -> Unit
+) {'''
+          if 'onReminderMinutesChanged: (Int) -> Unit' not in text:
+              if sig_needle not in text:
+                  raise SystemExit('PrayerScreen signature insertion point not found')
+              text = text.replace(sig_needle, sig_repl, 1)
+
+          prayer_start = text.index('@Composable\nprivate fun PrayerScreen(')
+          note_marker = '''        item {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
+'''
+          note_pos = text.index(note_marker, prayer_start)
+          reminder_ui = '''        item {
+            val reminderTitle = when (language) {
+                AppLanguage.TM -> "🔔 Namaz ýatlatmasy"
+                AppLanguage.RU -> "🔔 Напоминание о намазе"
+                AppLanguage.EN -> "🔔 Prayer reminder"
+                AppLanguage.TR -> "🔔 Namaz hatırlatıcısı"
+            }
+            val reminderSubtitle = when (language) {
+                AppLanguage.TM -> "Namazdan öň duýduryş wagtyny saýlaň"
+                AppLanguage.RU -> "Когда напомнить перед намазом"
+                AppLanguage.EN -> "Choose when to remind before prayer"
+                AppLanguage.TR -> "Namazdan önce hatırlatma süresini seçin"
+            }
+            val offLabel = when (language) {
+                AppLanguage.TM -> "Öçük"
+                AppLanguage.RU -> "Выкл."
+                AppLanguage.EN -> "Off"
+                AppLanguage.TR -> "Kapalı"
+            }
+            val atTimeLabel = when (language) {
+                AppLanguage.TM -> "Wagtynda"
+                AppLanguage.RU -> "В момент"
+                AppLanguage.EN -> "At time"
+                AppLanguage.TR -> "Vaktinde"
+            }
+
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(reminderTitle, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = DeepGreen)
+                    Text(reminderSubtitle, fontSize = 12.sp, color = Color.Gray)
+                    Spacer(Modifier.height(10.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        items(listOf(-1, 0, 5, 10, 15, 30)) { option ->
+                            val label = when {
+                                option < 0 -> offLabel
+                                option == 0 -> atTimeLabel
+                                else -> "$option min"
+                            }
+                            Button(
+                                onClick = { onReminderMinutesChanged(option) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (reminderMinutes == option) Gold else SoftGreen,
+                                    contentColor = DeepGreen
+                                )
+                            ) {
+                                Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+'''
+          if '🔔 Namaz ýatlatmasy' not in text:
+              text = text[:note_pos] + reminder_ui + text[note_pos:]
+
+          main.write_text(text, encoding='utf-8')
+
+          reminder = Path('app/src/main/java/com/msterjime/zikirdua/PrayerReminder.kt')
+          reminder.write_text(r'''package com.msterjime.zikirdua
+
+import android.Manifest
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+
+internal data class PrayerReminderDay(
+    val date: LocalDate,
+    val prayers: List<Pair<String, LocalTime>>
+)
+
+private const val ReminderChannelId = "prayer_reminders"
+private const val ReminderPrefs = "prayer_reminder_schedule"
+private const val ReminderCodesKey = "request_codes"
+private val ReminderZone = ZoneOffset.ofHours(5)
+
+internal fun cancelPrayerReminders(context: Context) {
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val prefs = context.getSharedPreferences(ReminderPrefs, Context.MODE_PRIVATE)
+    val codes = prefs.getString(ReminderCodesKey, "").orEmpty()
+        .split(',')
+        .mapNotNull { it.toIntOrNull() }
+
+    codes.forEach { code ->
+        val intent = Intent(context, PrayerReminderReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            code,
+            intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pendingIntent != null) {
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+    }
+    prefs.edit().remove(ReminderCodesKey).apply()
+}
+
+internal fun schedulePrayerReminders(
+    context: Context,
+    days: List<PrayerReminderDay>,
+    minutesBefore: Int,
+    languageCode: String,
+    cityName: String
+) {
+    cancelPrayerReminders(context)
+    if (minutesBefore < 0) return
+
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val now = ZonedDateTime.now(ReminderZone)
+    val requestCodes = mutableListOf<Int>()
+
+    days.forEach { day ->
+        day.prayers.forEachIndexed { prayerIndex, prayer ->
+            val prayerName = prayer.first
+            val prayerTime = prayer.second
+            val trigger = ZonedDateTime.of(day.date, prayerTime, ReminderZone)
+                .minusMinutes(minutesBefore.toLong())
+            if (!trigger.isAfter(now)) return@forEachIndexed
+
+            val code = ((day.date.toEpochDay() % 100000L) * 10L + prayerIndex).toInt()
+            val intent = Intent(context, PrayerReminderReceiver::class.java).apply {
+                putExtra("request_code", code)
+                putExtra("prayer_name", prayerName)
+                putExtra("city_name", cityName)
+                putExtra("minutes_before", minutesBefore)
+                putExtra("language_code", languageCode)
+            }
+            val pendingIntent = PendingIntent.getBroadcast(
+                context,
+                code,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                trigger.toInstant().toEpochMilli(),
+                pendingIntent
+            )
+            requestCodes += code
+        }
+    }
+
+    context.getSharedPreferences(ReminderPrefs, Context.MODE_PRIVATE)
+        .edit()
+        .putString(ReminderCodesKey, requestCodes.joinToString(","))
+        .apply()
+}
+
+class PrayerReminderReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+
+        createReminderChannel(context)
+
+        val code = intent.getIntExtra("request_code", 1001)
+        val prayerName = intent.getStringExtra("prayer_name").orEmpty()
+        val cityName = intent.getStringExtra("city_name").orEmpty()
+        val minutesBefore = intent.getIntExtra("minutes_before", 0)
+        val languageCode = intent.getStringExtra("language_code") ?: "tm"
+
+        val title = when (languageCode) {
+            "ru" -> "Время намаза"
+            "en" -> "Prayer time"
+            "tr" -> "Namaz vakti"
+            else -> "Namaz wagty"
+        }
+        val message = when (languageCode) {
+            "ru" -> if (minutesBefore > 0) "$prayerName через $minutesBefore мин. • $cityName" else "$prayerName • $cityName"
+            "en" -> if (minutesBefore > 0) "$prayerName in $minutesBefore min • $cityName" else "$prayerName • $cityName"
+            "tr" -> if (minutesBefore > 0) "$prayerName için $minutesBefore dk kaldı • $cityName" else "$prayerName • $cityName"
+            else -> if (minutesBefore > 0) "$prayerName wagtyna $minutesBefore minut galdy • $cityName" else "$prayerName • $cityName"
+        }
+
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openPendingIntent = PendingIntent.getActivity(
+            context,
+            code,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, ReminderChannelId)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(true)
+            .setContentIntent(openPendingIntent)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(code, notification)
+    }
+}
+
+private fun createReminderChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(
+            ReminderChannelId,
+            "Namaz reminders",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Prayer time reminders"
+            enableVibration(true)
+        }
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
+    }
+}
+''', encoding='utf-8')
+
+          manifest = Path('app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text(encoding='utf-8')
+          if 'android.permission.POST_NOTIFICATIONS' not in xml:
+              xml = xml.replace(
+                  '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n',
+                  '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n',
+                  1
+              )
+          if 'android:name=".PrayerReminderReceiver"' not in xml:
+              receiver = '''        <receiver
+            android:name=".PrayerReminderReceiver"
+            android:exported="false" />
+'''
+              xml = xml.replace('        <activity\n            android:name=".MainActivity"', receiver + '        <activity\n            android:name=".MainActivity"', 1)
+          manifest.write_text(xml, encoding='utf-8')
+          PY
+
+      - name: Commit reminder changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/msterjime/zikirdua/MainActivity.kt app/src/main/java/com/msterjime/zikirdua/PrayerReminder.kt app/src/main/AndroidManifest.xml
+          git commit -m "Add configurable prayer reminders"
+          git push
