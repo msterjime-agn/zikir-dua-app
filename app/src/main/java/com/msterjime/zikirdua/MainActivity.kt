@@ -938,6 +938,9 @@ private fun PrayerScreen(
             PrayerNotificationCard()
         }
         item {
+            AzanSettingsCard()
+        }
+        item {
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
@@ -1069,6 +1072,103 @@ private fun PrayerNotificationCard() {
                     )
                 ) {
                     Text(if (exactTime) "ON" else "OFF")
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun AzanSettingsCard() {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
+    var azanEnabled by remember {
+        mutableStateOf(preferences.getBoolean("azan_enabled", false))
+    }
+
+    var vibrationEnabled by remember {
+        mutableStateOf(preferences.getBoolean("azan_vibration", true))
+    }
+
+    var soundName by remember {
+        mutableStateOf(preferences.getString("azan_sound", "Azan 1") ?: "Azan 1")
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SoftGreen)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "🔊 Azan sazlamalary",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = DeepGreen
+            )
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Azan", color = Ink)
+                Button(
+                    onClick = {
+                        azanEnabled = !azanEnabled
+                        preferences.edit()
+                            .putBoolean("azan_enabled", azanEnabled)
+                            .apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (azanEnabled) Gold else Color.White,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(if (azanEnabled) "ON" else "OFF")
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Wibrasiýa", color = Ink)
+                Button(
+                    onClick = {
+                        vibrationEnabled = !vibrationEnabled
+                        preferences.edit()
+                            .putBoolean("azan_vibration", vibrationEnabled)
+                            .apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (vibrationEnabled) Gold else Color.White,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(if (vibrationEnabled) "ON" else "OFF")
+                }
+            }
+
+            Text("Ses: $soundName", color = Green)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Azan 1", "Azan 2", "Gysga").forEach { sound ->
+                    Button(
+                        onClick = {
+                            soundName = sound
+                            preferences.edit()
+                                .putString("azan_sound", sound)
+                                .apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (soundName == sound) Gold else Color.White,
+                            contentColor = DeepGreen
+                        )
+                    ) {
+                        Text(sound)
+                    }
                 }
             }
         }
