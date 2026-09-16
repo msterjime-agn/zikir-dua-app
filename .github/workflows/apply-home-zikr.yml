@@ -1,5 +1,6 @@
 name: Apply Home Zikr patch
 
+# trigger
 on:
   push:
     paths:
