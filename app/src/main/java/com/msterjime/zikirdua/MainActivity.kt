@@ -731,6 +731,7 @@ LaunchedEffect("auto_location") {
             when (selectedTab) {
                 AppTab.HOME -> HomeScreen(
                     city = selectedCity,
+                    prayerTimes = prayerTimes,
                     nextPrayer = nextPrayer,
                     countdown = countdown,
                     text = text,
@@ -760,6 +761,7 @@ LaunchedEffect("auto_location") {
 @Composable
 private fun HomeScreen(
     city: City,
+    prayerTimes: PrayerTimes,
     nextPrayer: NextPrayer,
     countdown: String,
     text: UiText,
@@ -771,6 +773,15 @@ private fun HomeScreen(
     onTasbih: () -> Unit
 ) {
     var languageMenuOpen by remember { mutableStateOf(false) }
+
+    val prayers = listOf(
+        "☾ ${prayerLabels(language).fajr}" to prayerTimes.fajr,
+        "☀ ${prayerLabels(language).sunrise}" to prayerTimes.sunrise,
+        "☼ ${prayerLabels(language).dhuhr}" to prayerTimes.dhuhr,
+        "◉ ${prayerLabels(language).asr}" to prayerTimes.asr,
+        "🌅 ${prayerLabels(language).maghrib}" to prayerTimes.maghrib,
+        "☽ ${prayerLabels(language).isha}" to prayerTimes.isha
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -791,10 +802,7 @@ private fun HomeScreen(
                 ) {
                     Text("🌐 ${language.label}  ▾", fontSize = 12.sp)
                 }
-                DropdownMenu(
-                    expanded = languageMenuOpen,
-                    onDismissRequest = { languageMenuOpen = false }
-                ) {
+                DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
                     AppLanguage.entries.forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option.label) },
@@ -813,31 +821,32 @@ private fun HomeScreen(
                 shape = RoundedCornerShape(22.dp),
                 colors = CardDefaults.cardColors(containerColor = DeepGreen)
             ) {
-                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
-                    Text(
-                        regionLabel(city, language),
-                        color = Color.White.copy(alpha = 0.60f),
-                        fontSize = 12.sp
-                    )
-                    Spacer(Modifier.height(12.dp))
+                Column(Modifier.padding(18.dp)) {
+                    Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp)
+                    Text(regionLabel(city, language), color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = onAutoLocation,
                         colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
-                    ) {
-                        Text("GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    ) { Text("GPS") }
+                    Spacer(Modifier.height(14.dp))
+                    Text("🕌 Namaz wagty", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.height(8.dp))
+                    prayers.forEach { (name, time) ->
+                        val active = name.contains(nextPrayer.name)
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(name, color = if (active) Gold else Color.White, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
+                            Text(time.format(TimeFormatter), color = if (active) Gold else Color.White)
+                        }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
-                    Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        nextPrayer.time.format(TimeFormatter),
-                        color = Color.White,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.75f))
+                    Text(nextPrayer.name, color = Gold, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 22.sp)
+                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.8f))
                 }
             }
         }
