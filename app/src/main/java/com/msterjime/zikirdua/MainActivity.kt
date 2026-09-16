@@ -869,6 +869,33 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
     }
 }
 
+
+@Composable
+private fun PrayerNotificationCard() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("🔔 Bildirişler", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text("Öňünden duýdurmak", color = Green)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {}) { Text("5 min") }
+            Button(onClick = {}) { Text("10 min") }
+            Button(onClick = {}) { Text("15 min") }
+            Button(onClick = {}) { Text("30 min") }
+        }
+    }
+}
+
+@Composable
+private fun AzanSettingsCard() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("📢 Azan sazlamalary", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {}) { Text("Azan ON") }
+            Button(onClick = {}) { Text("Wibrasiýa") }
+        }
+        Text("Ses: Azan 1", color = Green)
+    }
+}
+
 @Composable
 private fun NotificationSettingsScreen(
     city: City,
