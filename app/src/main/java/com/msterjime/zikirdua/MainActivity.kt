@@ -935,6 +935,9 @@ private fun PrayerScreen(
             )
         }
         item {
+            PrayerNotificationCard()
+        }
+        item {
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
@@ -974,6 +977,101 @@ private fun PrayerScreen(
             }
         }
         item { Spacer(Modifier.height(16.dp)) }
+    }
+}
+
+
+@Composable
+private fun PrayerNotificationCard() {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
+    var enabled by remember {
+        mutableStateOf(preferences.getBoolean("prayer_notifications", true))
+    }
+    var beforeMinutes by remember {
+        mutableIntStateOf(preferences.getInt("notification_minutes", 15))
+    }
+    var exactTime by remember {
+        mutableStateOf(preferences.getBoolean("notification_exact_time", true))
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = SoftGreen)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                "🔔 Namaz bildirişleri",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = DeepGreen
+            )
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Bildiriş", color = Ink)
+                Button(
+                    onClick = {
+                        enabled = !enabled
+                        preferences.edit()
+                            .putBoolean("prayer_notifications", enabled)
+                            .apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (enabled) Gold else Color.White,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(if (enabled) "ON" else "OFF")
+                }
+            }
+
+            Text("Öňünden duýdur", color = Green, fontWeight = FontWeight.SemiBold)
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(listOf(5, 10, 15, 30)) { value ->
+                    Button(
+                        onClick = {
+                            beforeMinutes = value
+                            preferences.edit()
+                                .putInt("notification_minutes", value)
+                                .apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (beforeMinutes == value) Gold else Color.White,
+                            contentColor = DeepGreen
+                        )
+                    ) {
+                        Text("${value} min")
+                    }
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Namaz wagtynda habar", color = Ink)
+                Button(
+                    onClick = {
+                        exactTime = !exactTime
+                        preferences.edit()
+                            .putBoolean("notification_exact_time", exactTime)
+                            .apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (exactTime) Gold else Color.White,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(if (exactTime) "ON" else "OFF")
+                }
+            }
+        }
     }
 }
 
