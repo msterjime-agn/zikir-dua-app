@@ -830,23 +830,19 @@ private fun HomeScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
                     ) { Text("GPS") }
                     Spacer(Modifier.height(14.dp))
-                    Text("🕌 Namaz wagty", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("🕌 ${text.nextPrayer}", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text(nextPrayer.name, color = Gold, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 21.sp)
+                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
-                    prayers.forEach { (name, time) ->
-                        val active = name.contains(nextPrayer.name)
-                        Row(
-                            Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(name, color = if (active) Gold else Color.White, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal)
-                            Text(time.format(TimeFormatter), color = if (active) Gold else Color.White)
-                        }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("${prayers[0].first.takeLast(5)} ${prayers[0].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
+                        Text("${prayers[2].first.takeLast(5)} ${prayers[2].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
+                        Text("${prayers[5].first.takeLast(5)} ${prayers[5].second.format(TimeFormatter)}", color = Color.White, fontSize = 11.sp)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.75f))
-                    Text(nextPrayer.name, color = Gold, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 22.sp)
-                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.8f))
                 }
             }
         }
@@ -1033,7 +1029,7 @@ private fun PrayerNotificationCard() {
                 }
             }
 
-            Text("Öňünden duýdur", color = Green, fontWeight = FontWeight.SemiBold)
+            Text("Предупредить заранее", color = Green, fontWeight = FontWeight.SemiBold)
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(listOf(5, 10, 15, 30)) { value ->
@@ -1058,7 +1054,7 @@ private fun PrayerNotificationCard() {
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Namaz wagtynda habar", color = Ink)
+                Text("Во время намаза", color = Ink)
                 Button(
                     onClick = {
                         exactTime = !exactTime
@@ -1134,7 +1130,7 @@ private fun AzanSettingsCard() {
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Wibrasiýa", color = Ink)
+                Text("Вибрация", color = Ink)
                 Button(
                     onClick = {
                         vibrationEnabled = !vibrationEnabled
@@ -1151,7 +1147,7 @@ private fun AzanSettingsCard() {
                 }
             }
 
-            Text("Ses: $soundName", color = Green)
+            Text("Звук: $soundName", color = Green)
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Azan 1", "Azan 2", "Gysga").forEach { sound ->
