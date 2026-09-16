@@ -821,6 +821,13 @@ private fun HomeScreen(
                         fontSize = 12.sp
                     )
                     Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = onAutoLocation,
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                    ) {
+                        Text("GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.height(8.dp))
                     Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
                     Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     Text(
