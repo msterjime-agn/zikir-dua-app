@@ -262,13 +262,213 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     )
 }
 
-private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): NextPrayer {
+private enum class AppLanguage(val code: String, val label: String) {
+    TM("tm", "🇹🇲 Türkmençe"),
+    RU("ru", "🇷🇺 Русский"),
+    EN("en", "🇬🇧 English"),
+    TR("tr", "🇹🇷 Türkçe")
+}
+
+private data class PrayerLabels(
+    val fajr: String,
+    val sunrise: String,
+    val dhuhr: String,
+    val asr: String,
+    val maghrib: String,
+    val isha: String
+)
+
+private data class UiText(
+    val home: String,
+    val prayerTimes: String,
+    val dhikr: String,
+    val tasbih: String,
+    val nextPrayer: String,
+    val timeLeft: String,
+    val quickAccess: String,
+    val prayerShortcut: String,
+    val morningDhikr: String,
+    val morningAfter: String,
+    val eveningDhikr: String,
+    val eveningAfter: String,
+    val counter: String,
+    val nextShort: String,
+    val offlineNote: String,
+    val dhikrDuaTitle: String,
+    val chooseSection: String,
+    val afterPrayer: String,
+    val dhikrPrayers: String,
+    val beforeSleep: String,
+    val eveningPrayers: String,
+    val personalPrayer: String,
+    val savedPrayers: String,
+    val target: String,
+    val reset: String
+)
+
+private fun prayerLabels(language: AppLanguage): PrayerLabels = when (language) {
+    AppLanguage.TM -> PrayerLabels(
+        "ERTIR NAMAZY", "GÜN DOGUŞY", "ÖÝLE NAMAZY",
+        "IKINDI NAMAZY", "AGŞAM NAMAZY", "ÝASSY NAMAZY"
+    )
+    AppLanguage.RU -> PrayerLabels(
+        "ФАДЖР", "ВОСХОД", "ЗУХР", "АСР", "МАГРИБ", "ИША"
+    )
+    AppLanguage.EN -> PrayerLabels(
+        "FAJR", "SUNRISE", "DHUHR", "ASR", "MAGHRIB", "ISHA"
+    )
+    AppLanguage.TR -> PrayerLabels(
+        "SABAH NAMAZI", "GÜNEŞ", "ÖĞLE NAMAZI",
+        "İKİNDİ NAMAZI", "AKŞAM NAMAZI", "YATSI NAMAZI"
+    )
+}
+
+private fun uiText(language: AppLanguage): UiText = when (language) {
+    AppLanguage.TM -> UiText(
+        home = "Baş sahypa",
+        prayerTimes = "Namaz wagty",
+        dhikr = "Zikr",
+        tasbih = "Tesbih",
+        nextPrayer = "Indiki namaz",
+        timeLeft = "Galan wagt",
+        quickAccess = "Çalt giriş",
+        prayerShortcut = "ERTIR • ÖÝLE • IKINDI • AGŞAM • ÝASSY",
+        morningDhikr = "Irdenki zikr",
+        morningAfter = "Ertir namazyndan soň",
+        eveningDhikr = "Agşamky zikr",
+        eveningAfter = "Agşam namazyndan soň",
+        counter = "Hasaplaýjy 33 / 100",
+        nextShort = "Indiki",
+        offlineNote = "Häzir ätiýaçlyk oflaýn hasaplama görkezilýär: Ertir 18°, Ýassy 17°, UTC+5. Türkmenistanyň Müftüliginiň usuly esasy režim hökmünde indiki tapgyrda goşular.",
+        dhikrDuaTitle = "Zikir & Dogalar",
+        chooseSection = "Bölümi saýlaň",
+        afterPrayer = "Namazdan soň",
+        dhikrPrayers = "Zikir we dogalar",
+        beforeSleep = "Ýatmazdan öň",
+        eveningPrayers = "Agşamky dogalar",
+        personalPrayer = "Şahsy doga",
+        savedPrayers = "Ýatda saklanan dogalar",
+        target = "Maksat",
+        reset = "Nola düşür"
+    )
+    AppLanguage.RU -> UiText(
+        home = "Главная",
+        prayerTimes = "Время намаза",
+        dhikr = "Зикр",
+        tasbih = "Тасбих",
+        nextPrayer = "Следующий намаз",
+        timeLeft = "Осталось",
+        quickAccess = "Быстрый доступ",
+        prayerShortcut = "ФАДЖР • ЗУХР • АСР • МАГРИБ • ИША",
+        morningDhikr = "Утренний зикр",
+        morningAfter = "После Фаджра",
+        eveningDhikr = "Вечерний зикр",
+        eveningAfter = "После Магриба",
+        counter = "Счётчик 33 / 100",
+        nextShort = "Следующий",
+        offlineNote = "Сейчас используется резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията Туркменистана будет подключён как основной режим на следующем этапе.",
+        dhikrDuaTitle = "Зикр и дуа",
+        chooseSection = "Выберите раздел",
+        afterPrayer = "После намаза",
+        dhikrPrayers = "Зикр и дуа",
+        beforeSleep = "Перед сном",
+        eveningPrayers = "Вечерние дуа",
+        personalPrayer = "Личная дуа",
+        savedPrayers = "Сохранённые дуа",
+        target = "Цель",
+        reset = "Сброс"
+    )
+    AppLanguage.EN -> UiText(
+        home = "Home",
+        prayerTimes = "Prayer times",
+        dhikr = "Dhikr",
+        tasbih = "Tasbih",
+        nextPrayer = "Next prayer",
+        timeLeft = "Time left",
+        quickAccess = "Quick access",
+        prayerShortcut = "FAJR • DHUHR • ASR • MAGHRIB • ISHA",
+        morningDhikr = "Morning dhikr",
+        morningAfter = "After Fajr",
+        eveningDhikr = "Evening dhikr",
+        eveningAfter = "After Maghrib",
+        counter = "Counter 33 / 100",
+        nextShort = "Next",
+        offlineNote = "A backup offline calculation is currently used: Fajr 18°, Isha 17°, UTC+5. The Turkmenistan Muftiate method will be added as the primary mode in the next stage.",
+        dhikrDuaTitle = "Dhikr & Prayers",
+        chooseSection = "Choose a section",
+        afterPrayer = "After prayer",
+        dhikrPrayers = "Dhikr and prayers",
+        beforeSleep = "Before sleep",
+        eveningPrayers = "Evening prayers",
+        personalPrayer = "Personal prayer",
+        savedPrayers = "Saved prayers",
+        target = "Target",
+        reset = "Reset"
+    )
+    AppLanguage.TR -> UiText(
+        home = "Ana sayfa",
+        prayerTimes = "Namaz vakitleri",
+        dhikr = "Zikir",
+        tasbih = "Tesbih",
+        nextPrayer = "Sıradaki namaz",
+        timeLeft = "Kalan süre",
+        quickAccess = "Hızlı erişim",
+        prayerShortcut = "SABAH • ÖĞLE • İKİNDİ • AKŞAM • YATSI",
+        morningDhikr = "Sabah zikri",
+        morningAfter = "Sabah namazından sonra",
+        eveningDhikr = "Akşam zikri",
+        eveningAfter = "Akşam namazından sonra",
+        counter = "Sayaç 33 / 100",
+        nextShort = "Sıradaki",
+        offlineNote = "Şu anda yedek çevrimdışı hesaplama kullanılıyor: Sabah 18°, Yatsı 17°, UTC+5. Türkmenistan Müftülüğü yöntemi bir sonraki aşamada ana yöntem olarak eklenecek.",
+        dhikrDuaTitle = "Zikir & Dualar",
+        chooseSection = "Bölüm seçin",
+        afterPrayer = "Namazdan sonra",
+        dhikrPrayers = "Zikir ve dualar",
+        beforeSleep = "Uyumadan önce",
+        eveningPrayers = "Akşam duaları",
+        personalPrayer = "Kişisel dua",
+        savedPrayers = "Kaydedilen dualar",
+        target = "Hedef",
+        reset = "Sıfırla"
+    )
+}
+
+private fun regionLabel(city: City, language: AppLanguage): String = when (language) {
+    AppLanguage.TM -> if (city.region == "Aşgabat" || city.region == "Arkadag") {
+        "${city.region} şäheri"
+    } else {
+        "${city.region} welaýaty"
+    }
+    AppLanguage.RU -> if (city.region == "Aşgabat" || city.region == "Arkadag") {
+        "г. ${city.region}"
+    } else {
+        "${city.region} велаят"
+    }
+    AppLanguage.EN -> if (city.region == "Aşgabat" || city.region == "Arkadag") {
+        "${city.region} city"
+    } else {
+        "${city.region} Region"
+    }
+    AppLanguage.TR -> if (city.region == "Aşgabat" || city.region == "Arkadag") {
+        "${city.region} şehri"
+    } else {
+        "${city.region} vilayeti"
+    }
+}
+
+private fun findNextPrayer(
+    now: ZonedDateTime,
+    city: City,
+    today: PrayerTimes,
+    labels: PrayerLabels
+): NextPrayer {
     val todayPrayers = listOf(
-        "ERTIR NAMAZY" to today.fajr,
-        "ÖÝLE NAMAZY" to today.dhuhr,
-        "IKINDI NAMAZY" to today.asr,
-        "AGŞAM NAMAZY" to today.maghrib,
-        "ÝASSY NAMAZY" to today.isha
+        labels.fajr to today.fajr,
+        labels.dhuhr to today.dhuhr,
+        labels.asr to today.asr,
+        labels.maghrib to today.maghrib,
+        labels.isha to today.isha
     )
     todayPrayers.forEach { (name, time) ->
         val candidate = ZonedDateTime.of(now.toLocalDate(), time, TurkmenistanZone)
@@ -276,7 +476,7 @@ private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): 
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
     val tomorrow = calculatePrayerTimes(tomorrowDate, city)
-    return NextPrayer("ERTIR NAMAZY", tomorrowDate, tomorrow.fajr)
+    return NextPrayer(labels.fajr, tomorrowDate, tomorrow.fajr)
 }
 
 private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
@@ -288,11 +488,18 @@ private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
     return "%02d:%02d:%02d".format(hours, minutes, secs)
 }
 
-enum class AppTab(val title: String, val symbol: String) {
-    HOME("Baş sahypa", "⌂"),
-    PRAYER("Namaz wagty", "☾"),
-    DHIKR("Zikr", "✦"),
-    TASBIH("Tesbih", "●")
+enum class AppTab(val symbol: String) {
+    HOME("⌂"),
+    PRAYER("☾"),
+    DHIKR("✦"),
+    TASBIH("●")
+}
+
+private fun tabTitle(tab: AppTab, text: UiText): String = when (tab) {
+    AppTab.HOME -> text.home
+    AppTab.PRAYER -> text.prayerTimes
+    AppTab.DHIKR -> text.dhikr
+    AppTab.TASBIH -> text.tasbih
 }
 
 class MainActivity : ComponentActivity() {
@@ -313,8 +520,13 @@ private fun ZikirDuaApp() {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
     val savedCityName = remember { preferences.getString("city", "Köneürgenç") ?: "Köneürgenç" }
+    val savedLanguageCode = remember { preferences.getString("language", "tm") ?: "tm" }
+
     var selectedCity by remember {
         mutableStateOf(Cities.firstOrNull { it.name == savedCityName } ?: Cities.first { it.name == "Köneürgenç" })
+    }
+    var language by remember {
+        mutableStateOf(AppLanguage.entries.firstOrNull { it.code == savedLanguageCode } ?: AppLanguage.TM)
     }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
     var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }
@@ -326,15 +538,22 @@ private fun ZikirDuaApp() {
         }
     }
 
+    val text = uiText(language)
+    val prayerNames = prayerLabels(language)
     val prayerTimes = remember(selectedCity, now.toLocalDate()) {
         calculatePrayerTimes(now.toLocalDate(), selectedCity)
     }
-    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes)
+    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
 
     fun chooseCity(city: City) {
         selectedCity = city
         preferences.edit().putString("city", city.name).apply()
+    }
+
+    fun chooseLanguage(newLanguage: AppLanguage) {
+        language = newLanguage
+        preferences.edit().putString("language", newLanguage.code).apply()
     }
 
     Scaffold(
@@ -347,9 +566,13 @@ private fun ZikirDuaApp() {
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
                         icon = {
-                            Text(tab.symbol, fontSize = 22.sp, fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal)
+                            Text(
+                                tab.symbol,
+                                fontSize = 22.sp,
+                                fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
+                            )
                         },
-                        label = { Text(tab.title, fontSize = 11.sp) }
+                        label = { Text(tabTitle(tab, text), fontSize = 11.sp) }
                     )
                 }
             }
@@ -357,10 +580,28 @@ private fun ZikirDuaApp() {
     ) { innerPadding ->
         Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when (selectedTab) {
-                AppTab.HOME -> HomeScreen(selectedCity, nextPrayer, countdown, { selectedTab = AppTab.PRAYER }, { selectedTab = AppTab.DHIKR }, { selectedTab = AppTab.TASBIH })
-                AppTab.PRAYER -> PrayerScreen(selectedCity, prayerTimes, nextPrayer.name, ::chooseCity)
-                AppTab.DHIKR -> DhikrScreen()
-                AppTab.TASBIH -> TasbihScreen()
+                AppTab.HOME -> HomeScreen(
+                    city = selectedCity,
+                    nextPrayer = nextPrayer,
+                    countdown = countdown,
+                    text = text,
+                    language = language,
+                    onLanguageSelected = ::chooseLanguage,
+                    onPrayer = { selectedTab = AppTab.PRAYER },
+                    onDhikr = { selectedTab = AppTab.DHIKR },
+                    onTasbih = { selectedTab = AppTab.TASBIH }
+                )
+                AppTab.PRAYER -> PrayerScreen(
+                    city = selectedCity,
+                    prayerTimes = prayerTimes,
+                    nextPrayerName = nextPrayer.name,
+                    text = text,
+                    labels = prayerNames,
+                    language = language,
+                    onCitySelected = ::chooseCity
+                )
+                AppTab.DHIKR -> DhikrScreen(text)
+                AppTab.TASBIH -> TasbihScreen(text)
             }
         }
     }
@@ -371,51 +612,98 @@ private fun HomeScreen(
     city: City,
     nextPrayer: NextPrayer,
     countdown: String,
+    text: UiText,
+    language: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
     onPrayer: () -> Unit,
     onDhikr: () -> Unit,
     onTasbih: () -> Unit
 ) {
+    var languageMenuOpen by remember { mutableStateOf(false) }
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory))).padding(horizontal = 18.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
             Text("NAMAZ WAGTY", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Text("Zikir & Dogalar • v1.0", fontSize = 14.sp, color = Green)
+            Spacer(Modifier.height(8.dp))
+            Box {
+                Button(
+                    onClick = { languageMenuOpen = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                ) {
+                    Text("🌐 ${language.label}  ▾", fontSize = 12.sp)
+                }
+                DropdownMenu(
+                    expanded = languageMenuOpen,
+                    onDismissRequest = { languageMenuOpen = false }
+                ) {
+                    AppLanguage.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            onClick = {
+                                onLanguageSelected(option)
+                                languageMenuOpen = false
+                            }
+                        )
+                    }
+                }
+            }
         }
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DeepGreen)
+            ) {
                 Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
                     Text(
-                        if (city.region == "Aşgabat" || city.region == "Arkadag") "${city.region} şäheri" else "${city.region} welaýaty",
+                        regionLabel(city, language),
                         color = Color.White.copy(alpha = 0.60f),
                         fontSize = 12.sp
                     )
                     Spacer(Modifier.height(12.dp))
-                    Text("Indiki namaz", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
                     Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                    Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        nextPrayer.time.format(TimeFormatter),
+                        color = Color.White,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text("Galan wagt: $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
+                    Text("${text.timeLeft}: $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
                 }
             }
         }
-        item { Text("Çalt giriş", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
-        item { QuickAction("☾", "Namaz wagty", "ERTIR • ÖÝLE • IKINDI • AGŞAM • ÝASSY", onPrayer) }
-        item { QuickAction("☀", "Irdenki zikr", "Ertir namazyndan soň", onDhikr) }
-        item { QuickAction("☽", "Agşamky zikr", "Agşam namazyndan soň", onDhikr) }
-        item { QuickAction("●", "Tesbih", "Hasaplaýjy 33 / 100", onTasbih) }
+        item { Text(text.quickAccess, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
+        item { QuickAction("☾", text.prayerTimes, text.prayerShortcut, onPrayer) }
+        item { QuickAction("☀", text.morningDhikr, text.morningAfter, onDhikr) }
+        item { QuickAction("☽", text.eveningDhikr, text.eveningAfter, onDhikr) }
+        item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
         item { Spacer(Modifier.height(18.dp)) }
     }
 }
 
 @Composable
 private fun QuickAction(symbol: String, title: String, subtitle: String, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp).background(SoftGreen, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(48.dp).background(SoftGreen, RoundedCornerShape(15.dp)),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(symbol, fontSize = 24.sp, color = DeepGreen)
             }
             Column(Modifier.padding(start = 14.dp)) {
@@ -427,48 +715,88 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 }
 
 @Composable
-private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: String, onCitySelected: (City) -> Unit) {
+private fun PrayerScreen(
+    city: City,
+    prayerTimes: PrayerTimes,
+    nextPrayerName: String,
+    text: UiText,
+    labels: PrayerLabels,
+    language: AppLanguage,
+    onCitySelected: (City) -> Unit
+) {
     var cityMenuOpen by remember { mutableStateOf(false) }
     val prayers = listOf(
-        PrayerRow("ERTIR NAMAZY", prayerTimes.fajr), PrayerRow("GÜN DOGUŞY", prayerTimes.sunrise), PrayerRow("ÖÝLE NAMAZY", prayerTimes.dhuhr),
-        PrayerRow("IKINDI NAMAZY", prayerTimes.asr), PrayerRow("AGŞAM NAMAZY", prayerTimes.maghrib), PrayerRow("ÝASSY NAMAZY", prayerTimes.isha)
+        PrayerRow(labels.fajr, prayerTimes.fajr),
+        PrayerRow(labels.sunrise, prayerTimes.sunrise),
+        PrayerRow(labels.dhuhr, prayerTimes.dhuhr),
+        PrayerRow(labels.asr, prayerTimes.asr),
+        PrayerRow(labels.maghrib, prayerTimes.maghrib),
+        PrayerRow(labels.isha, prayerTimes.isha)
     )
 
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("Namaz wagty", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text(text.prayerTimes, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Box {
-                Button(onClick = { cityMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
+                Button(
+                    onClick = { cityMenuOpen = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                ) {
                     Text("📍 ${city.name}  ▾")
                 }
                 DropdownMenu(expanded = cityMenuOpen, onDismissRequest = { cityMenuOpen = false }) {
                     Cities.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text("${option.region} • ${option.name}") },
-                            onClick = { onCitySelected(option); cityMenuOpen = false }
+                            text = { Text("${option.name} • ${regionLabel(option, language)}") },
+                            onClick = {
+                                onCitySelected(option)
+                                cityMenuOpen = false
+                            }
                         )
                     }
                 }
             }
         }
         item {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)), shape = RoundedCornerShape(16.dp)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Text(
-                    "Häzir ätiýaçlyk oflaýn hasaplama görkezilýär: Ertir 18°, Ýassy 17°, UTC+5. Türkmenistanyň Müftüliginiň usuly esasy režim hökmünde indiki tapgyrda goşular.",
-                    modifier = Modifier.padding(14.dp), fontSize = 13.sp, color = Color(0xFF6B5722)
+                    text.offlineNote,
+                    modifier = Modifier.padding(14.dp),
+                    fontSize = 13.sp,
+                    color = Color(0xFF6B5722)
                 )
             }
         }
         items(prayers) { prayer ->
             val isNext = prayer.name == nextPrayerName
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = if (isNext) SoftGreen else Color.White)) {
-                Row(Modifier.fillMaxWidth().padding(17.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = if (isNext) SoftGreen else Color.White)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(17.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Column {
                         Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        if (isNext) Text("Indiki", fontSize = 11.sp, color = Green)
+                        if (isNext) Text(text.nextShort, fontSize = 11.sp, color = Green)
                     }
-                    Text(prayer.time.format(TimeFormatter), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (isNext) DeepGreen else Green)
+                    Text(
+                        prayer.time.format(TimeFormatter),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isNext) DeepGreen else Green
+                    )
                 }
             }
         }
@@ -477,24 +805,31 @@ private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: S
 }
 
 @Composable
-private fun DhikrScreen() {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun DhikrScreen(text: UiText) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("Zikir & Dogalar", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text("Bölümi saýlaň", color = Green, fontSize = 14.sp)
+            Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text(text.chooseSection, color = Green, fontSize = 14.sp)
         }
-        item { SectionCard("☀", "Irdenki zikr", "Ertir namazyndan soň") }
-        item { SectionCard("☽", "Agşamky zikr", "Agşam namazyndan soň") }
-        item { SectionCard("✦", "Namazdan soň", "Zikir we dogalar") }
-        item { SectionCard("☾", "Ýatmazdan öň", "Agşamky dogalar") }
-        item { SectionCard("♡", "Şahsy doga", "Ýatda saklanan dogalar") }
+        item { SectionCard("☀", text.morningDhikr, text.morningAfter) }
+        item { SectionCard("☽", text.eveningDhikr, text.eveningAfter) }
+        item { SectionCard("✦", text.afterPrayer, text.dhikrPrayers) }
+        item { SectionCard("☾", text.beforeSleep, text.eveningPrayers) }
+        item { SectionCard("♡", text.personalPrayer, text.savedPrayers) }
     }
 }
 
 @Composable
 private fun SectionCard(symbol: String, title: String, subtitle: String) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(symbol, fontSize = 27.sp, color = Gold)
             Column(Modifier.padding(start = 15.dp)) {
@@ -506,21 +841,33 @@ private fun SectionCard(symbol: String, title: String, subtitle: String) {
 }
 
 @Composable
-private fun TasbihScreen() {
+private fun TasbihScreen(text: UiText) {
     var count by remember { mutableIntStateOf(0) }
     var target by remember { mutableIntStateOf(33) }
 
     Column(Modifier.fillMaxSize().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(10.dp))
-        Text("Tesbih", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-        Text("Maksat: $target", color = Green)
+        Text(text.tasbih, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text("${text.target}: $target", color = Green)
         Spacer(Modifier.height(28.dp))
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
-            Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Card(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = DeepGreen)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(vertical = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
                 Text("/ $target", color = Color.White.copy(alpha = 0.75f))
                 Spacer(Modifier.height(22.dp))
-                Button(onClick = { count += 1 }, modifier = Modifier.size(112.dp), shape = RoundedCornerShape(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) {
+                Button(
+                    onClick = { count += 1 },
+                    modifier = Modifier.size(112.dp),
+                    shape = RoundedCornerShape(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                ) {
                     Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -529,7 +876,12 @@ private fun TasbihScreen() {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = { target = 33; count = 0 }) { Text("33") }
             Button(onClick = { target = 100; count = 0 }) { Text("100") }
-            Button(onClick = { count = 0 }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)) { Text("Nola düşür") }
+            Button(
+                onClick = { count = 0 },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+            ) {
+                Text(text.reset)
+            }
         }
     }
 }
