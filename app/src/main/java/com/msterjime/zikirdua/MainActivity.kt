@@ -264,11 +264,11 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
 
 private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): NextPrayer {
     val todayPrayers = listOf(
-        "Фаджр" to today.fajr,
-        "Зухр" to today.dhuhr,
-        "Аср" to today.asr,
-        "Магриб" to today.maghrib,
-        "Иша" to today.isha
+        "ERTIR NAMAZY" to today.fajr,
+        "ÖÝLE NAMAZY" to today.dhuhr,
+        "IKINDI NAMAZY" to today.asr,
+        "AGŞAM NAMAZY" to today.maghrib,
+        "ÝASSY NAMAZY" to today.isha
     )
     todayPrayers.forEach { (name, time) ->
         val candidate = ZonedDateTime.of(now.toLocalDate(), time, TurkmenistanZone)
@@ -276,7 +276,7 @@ private fun findNextPrayer(now: ZonedDateTime, city: City, today: PrayerTimes): 
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
     val tomorrow = calculatePrayerTimes(tomorrowDate, city)
-    return NextPrayer("Фаджр", tomorrowDate, tomorrow.fajr)
+    return NextPrayer("ERTIR NAMAZY", tomorrowDate, tomorrow.fajr)
 }
 
 private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
@@ -289,10 +289,10 @@ private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
 }
 
 enum class AppTab(val title: String, val symbol: String) {
-    HOME("Главная", "⌂"),
-    PRAYER("Намаз", "☾"),
-    DHIKR("Зикр", "✦"),
-    TASBIH("Тасбих", "●")
+    HOME("Baş sahypa", "⌂"),
+    PRAYER("Namaz wagty", "☾"),
+    DHIKR("Zikr", "✦"),
+    TASBIH("Tesbih", "●")
 }
 
 class MainActivity : ComponentActivity() {
@@ -381,8 +381,8 @@ private fun HomeScreen(
     ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("Zikir & Dua", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text("Namaz Edition • v2.3", fontSize = 14.sp, color = Green)
+            Text("NAMAZ WAGTY", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text("Zikir & Dogalar • v1.0", fontSize = 14.sp, color = Green)
         }
         item {
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
@@ -390,19 +390,19 @@ private fun HomeScreen(
                     Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
                     Text(city.region, color = Color.White.copy(alpha = 0.60f), fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
-                    Text("Следующий намаз", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+                    Text("Indiki namaz", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
                     Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                     Text(nextPrayer.time.format(TimeFormatter), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
-                    Text("Осталось $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
+                    Text("Galan wagt: $countdown", color = Color.White.copy(alpha = 0.82f), fontSize = 14.sp)
                 }
             }
         }
-        item { Text("Быстрый доступ", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
-        item { QuickAction("☾", "Время намаза", "Фаджр • Зухр • Аср • Магриб • Иша", onPrayer) }
-        item { QuickAction("☀", "Утренний азкар", "Чтение после Фаджра", onDhikr) }
-        item { QuickAction("☽", "Вечерний азкар", "Чтение после Магриба", onDhikr) }
-        item { QuickAction("●", "Тасбих", "Счётчик 33 / 100", onTasbih) }
+        item { Text("Çalt giriş", fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
+        item { QuickAction("☾", "Namaz wagty", "ERTIR • ÖÝLE • IKINDI • AGŞAM • ÝASSY", onPrayer) }
+        item { QuickAction("☀", "Irdenki zikr", "Ertir namazyndan soň", onDhikr) }
+        item { QuickAction("☽", "Agşamky zikr", "Agşam namazyndan soň", onDhikr) }
+        item { QuickAction("●", "Tesbih", "Hasaplaýjy 33 / 100", onTasbih) }
         item { Spacer(Modifier.height(18.dp)) }
     }
 }
@@ -426,14 +426,14 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: String, onCitySelected: (City) -> Unit) {
     var cityMenuOpen by remember { mutableStateOf(false) }
     val prayers = listOf(
-        PrayerRow("Фаджр", prayerTimes.fajr), PrayerRow("Восход", prayerTimes.sunrise), PrayerRow("Зухр", prayerTimes.dhuhr),
-        PrayerRow("Аср", prayerTimes.asr), PrayerRow("Магриб", prayerTimes.maghrib), PrayerRow("Иша", prayerTimes.isha)
+        PrayerRow("ERTIR NAMAZY", prayerTimes.fajr), PrayerRow("GÜN DOGUŞY", prayerTimes.sunrise), PrayerRow("ÖÝLE NAMAZY", prayerTimes.dhuhr),
+        PrayerRow("IKINDI NAMAZY", prayerTimes.asr), PrayerRow("AGŞAM NAMAZY", prayerTimes.maghrib), PrayerRow("ÝASSY NAMAZY", prayerTimes.isha)
     )
 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("Время намаза", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text("Namaz wagty", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Box {
                 Button(onClick = { cityMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
                     Text("📍 ${city.name}  ▾")
@@ -451,7 +451,7 @@ private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: S
         item {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)), shape = RoundedCornerShape(16.dp)) {
                 Text(
-                    "Сейчас показан резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията ТКМ — обязательный основной режим и подключается следующим этапом.",
+                    "Häzir ätiýaçlyk oflaýn hasaplama görkezilýär: Ertir 18°, Ýassy 17°, UTC+5. Türkmenistanyň Müftüliginiň usuly esasy režim hökmünde indiki tapgyrda goşular.",
                     modifier = Modifier.padding(14.dp), fontSize = 13.sp, color = Color(0xFF6B5722)
                 )
             }
@@ -462,7 +462,7 @@ private fun PrayerScreen(city: City, prayerTimes: PrayerTimes, nextPrayerName: S
                 Row(Modifier.fillMaxWidth().padding(17.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        if (isNext) Text("Следующий", fontSize = 11.sp, color = Green)
+                        if (isNext) Text("Indiki", fontSize = 11.sp, color = Green)
                     }
                     Text(prayer.time.format(TimeFormatter), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (isNext) DeepGreen else Green)
                 }
@@ -477,14 +477,14 @@ private fun DhikrScreen() {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("Зикр и дуа", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text("Выберите раздел", color = Green, fontSize = 14.sp)
+            Text("Zikir & Dogalar", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text("Bölümi saýlaň", color = Green, fontSize = 14.sp)
         }
-        item { SectionCard("☀", "Утренний азкар", "После Фаджра") }
-        item { SectionCard("☽", "Вечерний азкар", "После Магриба") }
-        item { SectionCard("✦", "После намаза", "Зикр и дуа") }
-        item { SectionCard("☾", "Перед сном", "Вечерние дуа") }
-        item { SectionCard("♡", "Личная дуа", "Сохранённые обращения") }
+        item { SectionCard("☀", "Irdenki zikr", "Ertir namazyndan soň") }
+        item { SectionCard("☽", "Agşamky zikr", "Agşam namazyndan soň") }
+        item { SectionCard("✦", "Namazdan soň", "Zikir we dogalar") }
+        item { SectionCard("☾", "Ýatmazdan öň", "Agşamky dogalar") }
+        item { SectionCard("♡", "Şahsy doga", "Ýatda saklanan dogalar") }
     }
 }
 
@@ -508,13 +508,13 @@ private fun TasbihScreen() {
 
     Column(Modifier.fillMaxSize().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(10.dp))
-        Text("Тасбих", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-        Text("Цель: $target", color = Green)
+        Text("Tesbih", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text("Maksat: $target", color = Green)
         Spacer(Modifier.height(28.dp))
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
             Column(Modifier.fillMaxWidth().padding(vertical = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
-                Text("из $target", color = Color.White.copy(alpha = 0.75f))
+                Text("/ $target", color = Color.White.copy(alpha = 0.75f))
                 Spacer(Modifier.height(22.dp))
                 Button(onClick = { count += 1 }, modifier = Modifier.size(112.dp), shape = RoundedCornerShape(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) {
                     Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
@@ -525,7 +525,7 @@ private fun TasbihScreen() {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = { target = 33; count = 0 }) { Text("33") }
             Button(onClick = { target = 100; count = 0 }) { Text("100") }
-            Button(onClick = { count = 0 }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)) { Text("Сброс") }
+            Button(onClick = { count = 0 }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)) { Text("Nola düşür") }
         }
     }
 }
