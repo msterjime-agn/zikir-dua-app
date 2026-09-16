@@ -28,10 +28,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +41,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -560,6 +563,63 @@ private fun detectNearestCity(context: Context, onCityDetected: (City) -> Unit) 
     }
 }
 
+private data class TasbihLabels(
+    val chooseZikr: String,
+    val changeZikr: String,
+    val zikrs: String,
+    val names99: String,
+    val custom: String,
+    val customHint: String,
+    val unlimited: String,
+    val save: String
+)
+
+private fun tasbihLabels(language: AppLanguage): TasbihLabels = when (language) {
+    AppLanguage.TM -> TasbihLabels("Zikri saýla", "Zikri üýtget", "Zikrler", "Allanyň 99 ady", "Öz zikrim", "Zikriňizi ýazyň", "Çäksiz", "Ýatda sakla")
+    AppLanguage.RU -> TasbihLabels("Выбрать зикр", "Изменить зикр", "Зикры", "99 имён Аллаха", "Свой зикр", "Введите свой зикр", "Без ограничений", "Сохранить")
+    AppLanguage.EN -> TasbihLabels("Choose dhikr", "Change dhikr", "Dhikr", "99 Names of Allah", "My dhikr", "Enter your dhikr", "Unlimited", "Save")
+    AppLanguage.TR -> TasbihLabels("Zikir seç", "Zikri değiştir", "Zikirler", "Allah'ın 99 ismi", "Kendi zikrim", "Zikrinizi yazın", "Sınırsız", "Kaydet")
+}
+
+private val PopularZikrs = listOf(
+    "Subhanallah",
+    "Alhamdulillah",
+    "Allahu Akbar",
+    "Astaghfirullah",
+    "La ilaha illallah",
+    "Subhanallahi wa bihamdihi",
+    "Subhanallahil azim",
+    "La hawla wa la quwwata illa billah",
+    "Hasbunallahu wa ni'mal wakil",
+    "Allahumma salli ala Muhammad",
+    "La ilaha illallah wahdahu la sharika lah",
+    "Subhanallahi wa bihamdihi adada khalqihi",
+    "Ya Fattah",
+    "Ya Razzaq",
+    "Ya Ghaniyy",
+    "Ya Mughni"
+)
+
+private val AllahNames99 = listOf(
+    "Ar-Rahman", "Ar-Rahim", "Al-Malik", "Al-Quddus", "As-Salam", "Al-Mu'min",
+    "Al-Muhaymin", "Al-Aziz", "Al-Jabbar", "Al-Mutakabbir", "Al-Khaliq", "Al-Bari'",
+    "Al-Musawwir", "Al-Ghaffar", "Al-Qahhar", "Al-Wahhab", "Ar-Razzaq", "Al-Fattah",
+    "Al-'Alim", "Al-Qabid", "Al-Basit", "Al-Khafid", "Ar-Rafi'", "Al-Mu'izz",
+    "Al-Mudhill", "As-Sami'", "Al-Basir", "Al-Hakam", "Al-'Adl", "Al-Latif",
+    "Al-Khabir", "Al-Halim", "Al-'Azim", "Al-Ghafur", "Ash-Shakur", "Al-'Aliyy",
+    "Al-Kabir", "Al-Hafiz", "Al-Muqit", "Al-Hasib", "Al-Jalil", "Al-Karim",
+    "Ar-Raqib", "Al-Mujib", "Al-Wasi'", "Al-Hakim", "Al-Wadud", "Al-Majid",
+    "Al-Ba'ith", "Ash-Shahid", "Al-Haqq", "Al-Wakil", "Al-Qawiyy", "Al-Matin",
+    "Al-Waliyy", "Al-Hamid", "Al-Muhsi", "Al-Mubdi'", "Al-Mu'id", "Al-Muhyi",
+    "Al-Mumit", "Al-Hayy", "Al-Qayyum", "Al-Wajid", "Al-Maajid", "Al-Wahid",
+    "Al-Ahad", "As-Samad", "Al-Qadir", "Al-Muqtadir", "Al-Muqaddim", "Al-Mu'akhkhir",
+    "Al-Awwal", "Al-Akhir", "Az-Zahir", "Al-Batin", "Al-Waali", "Al-Muta'ali",
+    "Al-Barr", "At-Tawwab", "Al-Muntaqim", "Al-'Afuww", "Ar-Ra'uf", "Malik-ul-Mulk",
+    "Dhul-Jalali wal-Ikram", "Al-Muqsit", "Al-Jami'", "Al-Ghaniyy", "Al-Mughni", "Al-Mani'",
+    "Ad-Darr", "An-Nafi'", "An-Nur", "Al-Hadi", "Al-Badi'", "Al-Baqi",
+    "Al-Warith", "Ar-Rashid", "As-Sabur"
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -611,20 +671,24 @@ private fun ZikirDuaApp() {
         if (granted) refreshLocation()
     }
 
-    LaunchedEffect("auto_location") {
-        val fineGranted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (fineGranted || coarseGranted) {
-            refreshLocation()
-        } else {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
+    fun requestLocation() {
+    val fineGranted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (fineGranted || coarseGranted) {
+        refreshLocation()
+    } else {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
             )
-        }
+        )
     }
+}
+
+LaunchedEffect("auto_location") {
+    requestLocation()
+}
 
     LaunchedEffect("clock") {
         while (true) {
@@ -672,6 +736,7 @@ private fun ZikirDuaApp() {
                     text = text,
                     language = language,
                     onLanguageSelected = ::chooseLanguage,
+                    onAutoLocation = ::requestLocation,
                     onPrayer = { selectedTab = AppTab.PRAYER },
                     onDhikr = { selectedTab = AppTab.DHIKR },
                     onTasbih = { selectedTab = AppTab.TASBIH }
@@ -686,7 +751,7 @@ private fun ZikirDuaApp() {
                     onCitySelected = ::chooseCity
                 )
                 AppTab.DHIKR -> DhikrScreen(text)
-                AppTab.TASBIH -> TasbihScreen(text)
+                AppTab.TASBIH -> TasbihScreen(text, language)
             }
         }
     }
@@ -700,6 +765,7 @@ private fun HomeScreen(
     text: UiText,
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
+    onAutoLocation: () -> Unit,
     onPrayer: () -> Unit,
     onDhikr: () -> Unit,
     onTasbih: () -> Unit
@@ -770,8 +836,7 @@ private fun HomeScreen(
         }
         item { Text(text.quickAccess, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, color = Ink) }
         item { QuickAction("☾", text.prayerTimes, text.prayerShortcut, onPrayer) }
-        item { QuickAction("☀", text.morningDhikr, text.morningAfter, onDhikr) }
-        item { QuickAction("☽", text.eveningDhikr, text.eveningAfter, onDhikr) }
+        item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
         item { Spacer(Modifier.height(18.dp)) }
     }
@@ -926,115 +991,209 @@ private fun SectionCard(symbol: String, title: String, subtitle: String) {
 }
 
 @Composable
-private fun TasbihScreen(text: UiText) {
-    var count by remember { mutableIntStateOf(0) }
-    var target by remember { mutableIntStateOf(33) }
+private fun TasbihScreen(text: UiText, language: AppLanguage) {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+    val labels = tasbihLabels(language)
+
+    var count by remember { mutableIntStateOf(preferences.getInt("tasbih_count", 0)) }
+    var target by remember { mutableIntStateOf(preferences.getInt("tasbih_target", 33)) }
+    var selectedZikr by remember { mutableStateOf(preferences.getString("tasbih_zikr", "") ?: "") }
+    var chooserOpen by remember { mutableStateOf(false) }
+    var chooserSection by remember { mutableIntStateOf(0) }
+    var customDraft by remember { mutableStateOf("") }
+
+    val targetText = if (target < 0) labels.unlimited else target.toString()
+    val targetOptions = listOf(7, 11, 33, 100, 1000, -1)
+
+    fun saveCount(value: Int) {
+        count = value
+        preferences.edit().putInt("tasbih_count", value).apply()
+    }
+
+    fun saveTarget(value: Int) {
+        target = value
+        preferences.edit().putInt("tasbih_target", value).apply()
+    }
+
+    fun saveZikr(value: String) {
+        selectedZikr = value
+        preferences.edit().putString("tasbih_zikr", value).apply()
+    }
+
+    if (chooserOpen) {
+        AlertDialog(
+            onDismissRequest = { chooserOpen = false },
+            title = { Text(labels.chooseZikr) },
+            text = {
+                Column {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            Button(onClick = { chooserSection = 0 }) { Text(labels.zikrs) }
+                        }
+                        item {
+                            Button(onClick = { chooserSection = 1 }) { Text(labels.names99) }
+                        }
+                        item {
+                            Button(onClick = { chooserSection = 2 }) { Text(labels.custom) }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    when (chooserSection) {
+                        0 -> LazyColumn(Modifier.height(340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(PopularZikrs) { zikr ->
+                                Card(
+                                    Modifier.fillMaxWidth().clickable {
+                                        saveZikr(zikr)
+                                        chooserOpen = false
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = SoftGreen),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(zikr, Modifier.padding(12.dp), color = DeepGreen, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                        1 -> LazyColumn(Modifier.height(340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(AllahNames99) { name ->
+                                Card(
+                                    Modifier.fillMaxWidth().clickable {
+                                        saveZikr(name)
+                                        chooserOpen = false
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = SoftGreen),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(name, Modifier.padding(12.dp), color = DeepGreen, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
+                        else -> Column {
+                            OutlinedTextField(
+                                value = customDraft,
+                                onValueChange = { customDraft = it },
+                                label = { Text(labels.customHint) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Button(
+                                onClick = {
+                                    if (customDraft.isNotBlank()) {
+                                        saveZikr(customDraft.trim())
+                                        chooserOpen = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(labels.save)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(18.dp),
+        modifier = Modifier.fillMaxSize().padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(text.tasbih, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text("${text.target}: $targetText", color = Green)
+        Spacer(Modifier.height(8.dp))
 
-        Text(
-            "Tesbih",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = DeepGreen
-        )
-
-        Text(
-            "Maksat: $target",
-            color = Green
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Row(
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Button(
-                onClick = {
-                    target = 33
-                    count = 0
+            items(targetOptions) { option ->
+                val optionLabel = if (option < 0) "∞" else option.toString()
+                Button(
+                    onClick = { saveTarget(option) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (target == option) Gold else SoftGreen,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(optionLabel, fontWeight = FontWeight.Bold)
                 }
-            ) {
-                Text("33")
-            }
-
-            Spacer(Modifier.width(10.dp))
-
-            Button(
-                onClick = {
-                    target = 100
-                    count = 0
-                }
-            ) {
-                Text("100")
-            }
-
-            Spacer(Modifier.width(10.dp))
-
-            Button(
-                onClick = { count = 0 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Green
-                )
-            ) {
-                Text("Nola düşür")
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = { saveCount(0) },
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+        ) {
+            Text(text.reset)
+        }
+
+        Spacer(Modifier.height(10.dp))
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = DeepGreen)
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 36.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
+                modifier = Modifier.fillMaxSize().padding(top = 30.dp, bottom = 22.dp, start = 22.dp, end = 22.dp)
             ) {
                 Column(
                     modifier = Modifier.align(Alignment.TopCenter),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "$count",
-                        fontSize = 68.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Gold
-                    )
-                    Text(
-                        "/ $target",
-                        color = Color.White.copy(alpha = 0.75f)
-                    )
+                    Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
+                    if (target >= 0) {
+                        Text("/ $target", color = Color.White.copy(alpha = 0.75f))
+                    } else {
+                        Text("∞", color = Color.White.copy(alpha = 0.75f), fontSize = 22.sp)
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (selectedZikr.isBlank()) {
+                        Button(
+                            onClick = {
+                                customDraft = ""
+                                chooserOpen = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepGreen)
+                        ) {
+                            Text(labels.chooseZikr)
+                        }
+                    } else {
+                        Text(
+                            selectedZikr,
+                            color = Gold,
+                            fontSize = 21.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = {
+                                customDraft = selectedZikr
+                                chooserOpen = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepGreen)
+                        ) {
+                            Text(labels.changeZikr)
+                        }
+                    }
                 }
 
                 Button(
-                    onClick = { count += 1 },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .size(120.dp),
+                    onClick = { saveCount(count + 1) },
+                    modifier = Modifier.align(Alignment.BottomCenter).size(120.dp),
                     shape = RoundedCornerShape(60.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Gold,
-                        contentColor = DeepGreen
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
                 ) {
-                    Text(
-                        "+",
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
