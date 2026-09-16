@@ -1,0 +1,385 @@
+name: Apply Tasbih v2 patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-tasbih-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add persistent Tasbih, zikr library, targets and GPS button
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/msterjime/zikirdua/MainActivity.kt')
+          text = path.read_text(encoding='utf-8')
+
+          def add_after(needle, addition):
+              global text
+              if addition.strip() not in text:
+                  text = text.replace(needle, needle + addition, 1)
+
+          add_after('import androidx.compose.foundation.lazy.LazyColumn\n', 'import androidx.compose.foundation.lazy.LazyRow\n')
+          add_after('import androidx.compose.material3.ButtonDefaults\n', 'import androidx.compose.material3.AlertDialog\n')
+          add_after('import androidx.compose.material3.NavigationBarItem\n', 'import androidx.compose.material3.OutlinedTextField\n')
+
+          helpers = '''private data class TasbihLabels(
+              val chooseZikr: String,
+              val changeZikr: String,
+              val zikrs: String,
+              val names99: String,
+              val custom: String,
+              val customHint: String,
+              val unlimited: String,
+              val save: String
+          )
+
+          private fun tasbihLabels(language: AppLanguage): TasbihLabels = when (language) {
+              AppLanguage.TM -> TasbihLabels("Zikri saýla", "Zikri üýtget", "Zikrler", "Allanyň 99 ady", "Öz zikrim", "Zikriňizi ýazyň", "Çäksiz", "Ýatda sakla")
+              AppLanguage.RU -> TasbihLabels("Выбрать зикр", "Изменить зикр", "Зикры", "99 имён Аллаха", "Свой зикр", "Введите свой зикр", "Без ограничений", "Сохранить")
+              AppLanguage.EN -> TasbihLabels("Choose dhikr", "Change dhikr", "Dhikr", "99 Names of Allah", "My dhikr", "Enter your dhikr", "Unlimited", "Save")
+              AppLanguage.TR -> TasbihLabels("Zikir seç", "Zikri değiştir", "Zikirler", "Allah'ın 99 ismi", "Kendi zikrim", "Zikrinizi yazın", "Sınırsız", "Kaydet")
+          }
+
+          private val PopularZikrs = listOf(
+              "Subhanallah",
+              "Alhamdulillah",
+              "Allahu Akbar",
+              "Astaghfirullah",
+              "La ilaha illallah",
+              "Subhanallahi wa bihamdihi",
+              "Subhanallahil azim",
+              "La hawla wa la quwwata illa billah",
+              "Hasbunallahu wa ni'mal wakil",
+              "Allahumma salli ala Muhammad",
+              "La ilaha illallah wahdahu la sharika lah",
+              "Subhanallahi wa bihamdihi adada khalqihi",
+              "Ya Fattah",
+              "Ya Razzaq",
+              "Ya Ghaniyy",
+              "Ya Mughni"
+          )
+
+          private val AllahNames99 = listOf(
+              "Ar-Rahman", "Ar-Rahim", "Al-Malik", "Al-Quddus", "As-Salam", "Al-Mu'min",
+              "Al-Muhaymin", "Al-Aziz", "Al-Jabbar", "Al-Mutakabbir", "Al-Khaliq", "Al-Bari'",
+              "Al-Musawwir", "Al-Ghaffar", "Al-Qahhar", "Al-Wahhab", "Ar-Razzaq", "Al-Fattah",
+              "Al-'Alim", "Al-Qabid", "Al-Basit", "Al-Khafid", "Ar-Rafi'", "Al-Mu'izz",
+              "Al-Mudhill", "As-Sami'", "Al-Basir", "Al-Hakam", "Al-'Adl", "Al-Latif",
+              "Al-Khabir", "Al-Halim", "Al-'Azim", "Al-Ghafur", "Ash-Shakur", "Al-'Aliyy",
+              "Al-Kabir", "Al-Hafiz", "Al-Muqit", "Al-Hasib", "Al-Jalil", "Al-Karim",
+              "Ar-Raqib", "Al-Mujib", "Al-Wasi'", "Al-Hakim", "Al-Wadud", "Al-Majid",
+              "Al-Ba'ith", "Ash-Shahid", "Al-Haqq", "Al-Wakil", "Al-Qawiyy", "Al-Matin",
+              "Al-Waliyy", "Al-Hamid", "Al-Muhsi", "Al-Mubdi'", "Al-Mu'id", "Al-Muhyi",
+              "Al-Mumit", "Al-Hayy", "Al-Qayyum", "Al-Wajid", "Al-Maajid", "Al-Wahid",
+              "Al-Ahad", "As-Samad", "Al-Qadir", "Al-Muqtadir", "Al-Muqaddim", "Al-Mu'akhkhir",
+              "Al-Awwal", "Al-Akhir", "Az-Zahir", "Al-Batin", "Al-Waali", "Al-Muta'ali",
+              "Al-Barr", "At-Tawwab", "Al-Muntaqim", "Al-'Afuww", "Ar-Ra'uf", "Malik-ul-Mulk",
+              "Dhul-Jalali wal-Ikram", "Al-Muqsit", "Al-Jami'", "Al-Ghaniyy", "Al-Mughni", "Al-Mani'",
+              "Ad-Darr", "An-Nafi'", "An-Nur", "Al-Hadi", "Al-Badi'", "Al-Baqi",
+              "Al-Warith", "Ar-Rashid", "As-Sabur"
+          )
+
+          '''
+          if 'private data class TasbihLabels(' not in text:
+              text = text.replace('class MainActivity : ComponentActivity() {', helpers + 'class MainActivity : ComponentActivity() {', 1)
+
+          # Add a reusable requestLocation() function and use it for startup GPS.
+          auto_start = text.index('    LaunchedEffect("auto_location") {')
+          clock_start = text.index('    LaunchedEffect("clock") {', auto_start)
+          auto_block = '''    fun requestLocation() {
+              val fineGranted = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+              val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+              if (fineGranted || coarseGranted) {
+                  refreshLocation()
+              } else {
+                  locationPermissionLauncher.launch(
+                      arrayOf(
+                          Manifest.permission.ACCESS_FINE_LOCATION,
+                          Manifest.permission.ACCESS_COARSE_LOCATION
+                      )
+                  )
+              }
+          }
+
+          LaunchedEffect("auto_location") {
+              requestLocation()
+          }
+
+          '''
+          text = text[:auto_start] + auto_block + text[clock_start:]
+
+          text = text.replace(
+              '                    onLanguageSelected = ::chooseLanguage,\n                    onPrayer = { selectedTab = AppTab.PRAYER },',
+              '                    onLanguageSelected = ::chooseLanguage,\n                    onAutoLocation = ::requestLocation,\n                    onPrayer = { selectedTab = AppTab.PRAYER },',
+              1
+          )
+          text = text.replace('                AppTab.TASBIH -> TasbihScreen(text)', '                AppTab.TASBIH -> TasbihScreen(text, language)', 1)
+
+          text = text.replace(
+              '    onLanguageSelected: (AppLanguage) -> Unit,\n    onPrayer: () -> Unit,',
+              '    onLanguageSelected: (AppLanguage) -> Unit,\n    onAutoLocation: () -> Unit,\n    onPrayer: () -> Unit,',
+              1
+          )
+
+          region_block = '''                    Text(
+              regionLabel(city, language),
+              color = Color.White.copy(alpha = 0.60f),
+              fontSize = 12.sp
+          )
+          '''
+          region_block = region_block.replace('          regionLabel', '                        regionLabel').replace('          color', '                        color').replace('          fontSize', '                        fontSize').replace('          )', '                    )')
+          if 'Text("◎ GPS"' not in text:
+              gps_button = '''                    Spacer(Modifier.height(6.dp))
+              Button(
+                  onClick = onAutoLocation,
+                  colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+              ) {
+                  Text("◎ GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+              }
+          '''
+              gps_button = gps_button.replace('              Button', '                    Button').replace('                  onClick', '                        onClick').replace('                  colors', '                        colors').replace('              ) {', '                    ) {').replace('                  Text', '                        Text').replace('              }', '                    }')
+              text = text.replace(region_block, region_block + gps_button, 1)
+
+          # Combine morning/evening dhikr cards on Home into one Zikr card.
+          text = text.replace(
+              '        item { QuickAction("☀", text.morningDhikr, text.morningAfter, onDhikr) }\n        item { QuickAction("☽", text.eveningDhikr, text.eveningAfter, onDhikr) }\n',
+              '        item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }\n',
+              1
+          )
+
+          # Replace Tasbih screen (it is the final composable in this file).
+          marker = '@Composable\nprivate fun TasbihScreen('
+          start = text.index(marker)
+          new_tasbih = '''@Composable
+          private fun TasbihScreen(text: UiText, language: AppLanguage) {
+              val context = LocalContext.current
+              val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+              val labels = tasbihLabels(language)
+
+              var count by remember { mutableIntStateOf(preferences.getInt("tasbih_count", 0)) }
+              var target by remember { mutableIntStateOf(preferences.getInt("tasbih_target", 33)) }
+              var selectedZikr by remember { mutableStateOf(preferences.getString("tasbih_zikr", "") ?: "") }
+              var chooserOpen by remember { mutableStateOf(false) }
+              var chooserSection by remember { mutableIntStateOf(0) }
+              var customDraft by remember { mutableStateOf("") }
+
+              val targetText = if (target < 0) labels.unlimited else target.toString()
+              val targetOptions = listOf(7, 11, 33, 100, 1000, -1)
+
+              fun saveCount(value: Int) {
+                  count = value
+                  preferences.edit().putInt("tasbih_count", value).apply()
+              }
+
+              fun saveTarget(value: Int) {
+                  target = value
+                  preferences.edit().putInt("tasbih_target", value).apply()
+              }
+
+              fun saveZikr(value: String) {
+                  selectedZikr = value
+                  preferences.edit().putString("tasbih_zikr", value).apply()
+              }
+
+              if (chooserOpen) {
+                  AlertDialog(
+                      onDismissRequest = { chooserOpen = false },
+                      title = { Text(labels.chooseZikr) },
+                      text = {
+                          Column {
+                              LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                  item {
+                                      Button(onClick = { chooserSection = 0 }) { Text(labels.zikrs) }
+                                  }
+                                  item {
+                                      Button(onClick = { chooserSection = 1 }) { Text(labels.names99) }
+                                  }
+                                  item {
+                                      Button(onClick = { chooserSection = 2 }) { Text(labels.custom) }
+                                  }
+                              }
+                              Spacer(Modifier.height(12.dp))
+                              when (chooserSection) {
+                                  0 -> LazyColumn(Modifier.height(340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                      items(PopularZikrs) { zikr ->
+                                          Card(
+                                              Modifier.fillMaxWidth().clickable {
+                                                  saveZikr(zikr)
+                                                  chooserOpen = false
+                                              },
+                                              colors = CardDefaults.cardColors(containerColor = SoftGreen),
+                                              shape = RoundedCornerShape(12.dp)
+                                          ) {
+                                              Text(zikr, Modifier.padding(12.dp), color = DeepGreen, fontWeight = FontWeight.Medium)
+                                          }
+                                      }
+                                  }
+                                  1 -> LazyColumn(Modifier.height(340.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                      items(AllahNames99) { name ->
+                                          Card(
+                                              Modifier.fillMaxWidth().clickable {
+                                                  saveZikr(name)
+                                                  chooserOpen = false
+                                              },
+                                              colors = CardDefaults.cardColors(containerColor = SoftGreen),
+                                              shape = RoundedCornerShape(12.dp)
+                                          ) {
+                                              Text(name, Modifier.padding(12.dp), color = DeepGreen, fontWeight = FontWeight.Medium)
+                                          }
+                                      }
+                                  }
+                                  else -> Column {
+                                      OutlinedTextField(
+                                          value = customDraft,
+                                          onValueChange = { customDraft = it },
+                                          label = { Text(labels.customHint) },
+                                          modifier = Modifier.fillMaxWidth()
+                                      )
+                                      Spacer(Modifier.height(10.dp))
+                                      Button(
+                                          onClick = {
+                                              if (customDraft.isNotBlank()) {
+                                                  saveZikr(customDraft.trim())
+                                                  chooserOpen = false
+                                              }
+                                          },
+                                          modifier = Modifier.fillMaxWidth()
+                                      ) {
+                                          Text(labels.save)
+                                      }
+                                  }
+                              }
+                          }
+                      },
+                      confirmButton = {}
+                  )
+              }
+
+              Column(
+                  modifier = Modifier.fillMaxSize().padding(18.dp),
+                  horizontalAlignment = Alignment.CenterHorizontally
+              ) {
+                  Spacer(Modifier.height(6.dp))
+                  Text(text.tasbih, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                  Text("${text.target}: $targetText", color = Green)
+                  Spacer(Modifier.height(8.dp))
+
+                  LazyRow(
+                      modifier = Modifier.fillMaxWidth(),
+                      horizontalArrangement = Arrangement.spacedBy(7.dp)
+                  ) {
+                      items(targetOptions) { option ->
+                          val optionLabel = if (option < 0) "∞" else option.toString()
+                          Button(
+                              onClick = { saveTarget(option) },
+                              colors = ButtonDefaults.buttonColors(
+                                  containerColor = if (target == option) Gold else SoftGreen,
+                                  contentColor = DeepGreen
+                              )
+                          ) {
+                              Text(optionLabel, fontWeight = FontWeight.Bold)
+                          }
+                      }
+                  }
+
+                  Spacer(Modifier.height(8.dp))
+                  Button(
+                      onClick = { saveCount(0) },
+                      colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+                  ) {
+                      Text(text.reset)
+                  }
+
+                  Spacer(Modifier.height(10.dp))
+
+                  Card(
+                      modifier = Modifier.fillMaxWidth().weight(1f),
+                      shape = RoundedCornerShape(28.dp),
+                      colors = CardDefaults.cardColors(containerColor = DeepGreen)
+                  ) {
+                      Box(
+                          modifier = Modifier.fillMaxSize().padding(top = 30.dp, bottom = 22.dp, start = 22.dp, end = 22.dp)
+                      ) {
+                          Column(
+                              modifier = Modifier.align(Alignment.TopCenter),
+                              horizontalAlignment = Alignment.CenterHorizontally
+                          ) {
+                              Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
+                              if (target >= 0) {
+                                  Text("/ $target", color = Color.White.copy(alpha = 0.75f))
+                              } else {
+                                  Text("∞", color = Color.White.copy(alpha = 0.75f), fontSize = 22.sp)
+                              }
+                          }
+
+                          Column(
+                              modifier = Modifier.align(Alignment.Center),
+                              horizontalAlignment = Alignment.CenterHorizontally
+                          ) {
+                              if (selectedZikr.isBlank()) {
+                                  Button(
+                                      onClick = {
+                                          customDraft = ""
+                                          chooserOpen = true
+                                      },
+                                      colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepGreen)
+                                  ) {
+                                      Text(labels.chooseZikr)
+                                  }
+                              } else {
+                                  Text(
+                                      selectedZikr,
+                                      color = Gold,
+                                      fontSize = 21.sp,
+                                      fontWeight = FontWeight.SemiBold,
+                                      textAlign = TextAlign.Center
+                                  )
+                                  Spacer(Modifier.height(10.dp))
+                                  Button(
+                                      onClick = {
+                                          customDraft = selectedZikr
+                                          chooserOpen = true
+                                      },
+                                      colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = DeepGreen)
+                                  ) {
+                                      Text(labels.changeZikr)
+                                  }
+                              }
+                          }
+
+                          Button(
+                              onClick = { saveCount(count + 1) },
+                              modifier = Modifier.align(Alignment.BottomCenter).size(120.dp),
+                              shape = RoundedCornerShape(60.dp),
+                              colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                          ) {
+                              Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                          }
+                      }
+                  }
+              }
+          }
+          '''
+          text = text[:start] + new_tasbih
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit Tasbih v2 changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/msterjime/zikirdua/MainActivity.kt
+          git commit -m "Add persistent Tasbih library targets GPS button and single home Zikr"
+          git push
