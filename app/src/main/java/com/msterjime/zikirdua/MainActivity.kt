@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -841,7 +842,7 @@ private fun SectionCard(symbol: String, title: String, subtitle: String) {
 }
 
 @Composable
-private fun TasbihScreen() {
+private fun TasbihScreen(text: UiText) {
     var count by remember { mutableIntStateOf(0) }
     var target by remember { mutableIntStateOf(33) }
 
