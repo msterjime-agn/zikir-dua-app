@@ -97,14 +97,14 @@ private val AppColors = lightColorScheme(
     onSurface = Ink
 )
 
-private data class City(
+internal data class City(
     val region: String,
     val name: String,
     val latitude: Double,
     val longitude: Double
 )
 
-private val Cities = listOf(
+internal val Cities = listOf(
     City("Aşgabat", "Aşgabat", 37.9601, 58.3261),
     City("Arkadag", "Arkadag", 38.0550, 58.2000),
 
@@ -153,7 +153,7 @@ private val Cities = listOf(
     City("Mary", "Parahat (Oguzhan)", 37.3000, 61.0000)
 )
 
-private data class PrayerTimes(
+internal data class PrayerTimes(
     val fajr: LocalTime,
     val sunrise: LocalTime,
     val dhuhr: LocalTime,
@@ -213,7 +213,7 @@ private fun doubleHourToLocalTime(value: Double): LocalTime {
     return LocalTime.of(totalMinutes / 60, totalMinutes % 60)
 }
 
-private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
+internal fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     val jDate = julianDate(date.year, date.monthValue, date.dayOfMonth) - city.longitude / (15.0 * 24.0)
 
     fun midDay(time: Double): Double {
@@ -274,14 +274,14 @@ private fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     )
 }
 
-private enum class AppLanguage(val code: String, val label: String) {
+internal enum class AppLanguage(val code: String, val label: String) {
     TM("tm", "🇹🇲 Türkmençe"),
     RU("ru", "🇷🇺 Русский"),
     EN("en", "🇬🇧 English"),
     TR("tr", "🇹🇷 Türkçe")
 }
 
-private data class PrayerLabels(
+internal data class PrayerLabels(
     val fajr: String,
     val sunrise: String,
     val dhuhr: String,
@@ -318,7 +318,7 @@ private data class UiText(
     val reset: String
 )
 
-private fun prayerLabels(language: AppLanguage): PrayerLabels = when (language) {
+internal fun prayerLabels(language: AppLanguage): PrayerLabels = when (language) {
     AppLanguage.TM -> PrayerLabels(
         "ERTIR NAMAZY", "GÜN DOGUŞY", "ÖÝLE NAMAZY",
         "IKINDI NAMAZY", "AGŞAM NAMAZY", "ÝASSY NAMAZY"
@@ -349,7 +349,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         morningAfter = "Ertir namazyndan soň",
         eveningDhikr = "Agşamky zikr",
         eveningAfter = "Agşam namazyndan soň",
-        counter = "Hasaplaýjy 33 / 100",
+        counter = "Hasaplaýjy • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Indiki",
         offlineNote = "Häzir ätiýaçlyk oflaýn hasaplama görkezilýär: Ertir 18°, Ýassy 17°, UTC+5. Türkmenistanyň Müftüliginiň usuly esasy režim hökmünde indiki tapgyrda goşular.",
         dhikrDuaTitle = "Zikir & Dogalar",
@@ -376,7 +376,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         morningAfter = "После Фаджра",
         eveningDhikr = "Вечерний зикр",
         eveningAfter = "После Магриба",
-        counter = "Счётчик 33 / 100",
+        counter = "Счётчик • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Следующий",
         offlineNote = "Сейчас используется резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията Туркменистана будет подключён как основной режим на следующем этапе.",
         dhikrDuaTitle = "Зикр и дуа",
@@ -403,7 +403,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         morningAfter = "After Fajr",
         eveningDhikr = "Evening dhikr",
         eveningAfter = "After Maghrib",
-        counter = "Counter 33 / 100",
+        counter = "Counter • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Next",
         offlineNote = "A backup offline calculation is currently used: Fajr 18°, Isha 17°, UTC+5. The Turkmenistan Muftiate method will be added as the primary mode in the next stage.",
         dhikrDuaTitle = "Dhikr & Prayers",
@@ -430,7 +430,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         morningAfter = "Sabah namazından sonra",
         eveningDhikr = "Akşam zikri",
         eveningAfter = "Akşam namazından sonra",
-        counter = "Sayaç 33 / 100",
+        counter = "Sayaç • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Sıradaki",
         offlineNote = "Şu anda yedek çevrimdışı hesaplama kullanılıyor: Sabah 18°, Yatsı 17°, UTC+5. Türkmenistan Müftülüğü yöntemi bir sonraki aşamada ana yöntem olarak eklenecek.",
         dhikrDuaTitle = "Zikir & Dualar",
@@ -917,6 +917,13 @@ private fun PrayerScreen(
                     }
                 }
             }
+        }
+        item {
+            PrayerReminderCard(
+                city = city,
+                labels = labels,
+                languageCode = language.code
+            )
         }
         item {
             Card(
