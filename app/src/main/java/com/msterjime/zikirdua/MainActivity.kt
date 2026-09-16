@@ -507,9 +507,23 @@ enum class AppTab(val symbol: String) {
     TASBIH("●")
 }
 
-private fun tabTitle(tab: AppTab, text: UiText): String = when (tab) {
+private fun notificationSettingsTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.TM -> "Bildiriş sazlamalary"
+    AppLanguage.RU -> "Настройки уведомлений"
+    AppLanguage.EN -> "Notification settings"
+    AppLanguage.TR -> "Bildirim ayarları"
+}
+
+private fun notificationSettingsSubtitle(language: AppLanguage): String = when (language) {
+    AppLanguage.TM -> "Ýatlatma • Azan • Bildiriş"
+    AppLanguage.RU -> "Напоминание • Азан • Уведомления"
+    AppLanguage.EN -> "Reminder • Adhan • Notifications"
+    AppLanguage.TR -> "Hatırlatma • Ezan • Bildirimler"
+}
+
+private fun tabTitle(tab: AppTab, text: UiText, language: AppLanguage): String = when (tab) {
     AppTab.HOME -> text.home
-    AppTab.PRAYER -> text.prayerTimes
+    AppTab.PRAYER -> notificationSettingsTitle(language)
     AppTab.DHIKR -> text.dhikr
     AppTab.TASBIH -> text.tasbih
 }
@@ -721,7 +735,7 @@ LaunchedEffect("auto_location") {
                                 fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal
                             )
                         },
-                        label = { Text(tabTitle(tab, text), fontSize = 11.sp) }
+                        label = { Text(tabTitle(tab, text, language), fontSize = 11.sp) }
                     )
                 }
             }
@@ -738,18 +752,14 @@ LaunchedEffect("auto_location") {
                     language = language,
                     onLanguageSelected = ::chooseLanguage,
                     onAutoLocation = ::requestLocation,
-                    onPrayer = { selectedTab = AppTab.PRAYER },
+                    onNotifications = { selectedTab = AppTab.PRAYER },
                     onDhikr = { selectedTab = AppTab.DHIKR },
                     onTasbih = { selectedTab = AppTab.TASBIH }
                 )
-                AppTab.PRAYER -> PrayerScreen(
+                AppTab.PRAYER -> NotificationSettingsScreen(
                     city = selectedCity,
-                    prayerTimes = prayerTimes,
-                    nextPrayerName = nextPrayer.name,
-                    text = text,
                     labels = prayerNames,
-                    language = language,
-                    onCitySelected = ::chooseCity
+                    language = language
                 )
                 AppTab.DHIKR -> DhikrScreen(text)
                 AppTab.TASBIH -> TasbihScreen(text, language)
@@ -768,7 +778,7 @@ private fun HomeScreen(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     onAutoLocation: () -> Unit,
-    onPrayer: () -> Unit,
+    onNotifications: () -> Unit,
     onDhikr: () -> Unit,
     onTasbih: () -> Unit
 ) {
@@ -831,7 +841,7 @@ private fun HomeScreen(
             }
         }
         item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
-        item { QuickAction("☾", text.prayerTimes, text.prayerShortcut, onPrayer) }
+        item { QuickAction("🔔", notificationSettingsTitle(language), notificationSettingsSubtitle(language), onNotifications) }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
     }
@@ -860,297 +870,53 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 }
 
 @Composable
-private fun PrayerScreen(
+private fun NotificationSettingsScreen(
     city: City,
-    prayerTimes: PrayerTimes,
-    nextPrayerName: String,
-    text: UiText,
     labels: PrayerLabels,
-    language: AppLanguage,
-    onCitySelected: (City) -> Unit
+    language: AppLanguage
 ) {
-    var cityMenuOpen by remember { mutableStateOf(false) }
-    val prayers = listOf(
-        PrayerRow(labels.fajr, prayerTimes.fajr),
-        PrayerRow(labels.sunrise, prayerTimes.sunrise),
-        PrayerRow(labels.dhuhr, prayerTimes.dhuhr),
-        PrayerRow(labels.asr, prayerTimes.asr),
-        PrayerRow(labels.maghrib, prayerTimes.maghrib),
-        PrayerRow(labels.isha, prayerTimes.isha)
-    )
-
     LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text(text.prayerTimes, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Box {
-                Button(
-                    onClick = { cityMenuOpen = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
-                ) {
-                    Text("📍 ${city.name}  ▾")
-                }
-                DropdownMenu(expanded = cityMenuOpen, onDismissRequest = { cityMenuOpen = false }) {
-                    Cities.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text("${option.name} • ${regionLabel(option, language)}") },
-                            onClick = {
-                                onCitySelected(option)
-                                cityMenuOpen = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            PrayerReminderCard(
-                city = city,
-                labels = labels,
-                languageCode = language.code
-            )
-        }
-        item {
-            PrayerNotificationCard()
-        }
-        item {
-            AzanSettingsCard()
-        }
-        item {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5D9)),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text.offlineNote,
-                    modifier = Modifier.padding(14.dp),
-                    fontSize = 13.sp,
-                    color = Color(0xFF6B5722)
-                )
-            }
-        }
-        items(prayers) { prayer ->
-            val isNext = prayer.name == nextPrayerName
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = if (isNext) SoftGreen else Color.White)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(17.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(prayer.name, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                        if (isNext) Text(text.nextShort, fontSize = 11.sp, color = Green)
-                    }
-                    Text(
-                        prayer.time.format(TimeFormatter),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isNext) DeepGreen else Green
-                    )
-                }
-            }
-        }
-        item { Spacer(Modifier.height(16.dp)) }
-    }
-}
-
-
-@Composable
-private fun PrayerNotificationCard() {
-    val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
-
-    var enabled by remember {
-        mutableStateOf(preferences.getBoolean("prayer_notifications", true))
-    }
-    var beforeMinutes by remember {
-        mutableIntStateOf(preferences.getInt("notification_minutes", 15))
-    }
-    var exactTime by remember {
-        mutableStateOf(preferences.getBoolean("notification_exact_time", true))
-    }
-
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = SoftGreen)
-    ) {
-        Column(Modifier.padding(16.dp)) {
             Text(
-                "🔔 Namaz bildirişleri",
-                fontSize = 18.sp,
+                notificationSettingsTitle(language),
+                fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = DeepGreen
             )
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Bildiriş", color = Ink)
-                Button(
-                    onClick = {
-                        enabled = !enabled
-                        preferences.edit()
-                            .putBoolean("prayer_notifications", enabled)
-                            .apply()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (enabled) Gold else Color.White,
-                        contentColor = DeepGreen
-                    )
-                ) {
-                    Text(if (enabled) "ON" else "OFF")
-                }
-            }
-
-            Text("Предупредить заранее", color = Green, fontWeight = FontWeight.SemiBold)
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(listOf(5, 10, 15, 30)) { value ->
-                    Button(
-                        onClick = {
-                            beforeMinutes = value
-                            preferences.edit()
-                                .putInt("notification_minutes", value)
-                                .apply()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (beforeMinutes == value) Gold else Color.White,
-                            contentColor = DeepGreen
-                        )
-                    ) {
-                        Text("${value} min")
-                    }
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Во время намаза", color = Ink)
-                Button(
-                    onClick = {
-                        exactTime = !exactTime
-                        preferences.edit()
-                            .putBoolean("notification_exact_time", exactTime)
-                            .apply()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (exactTime) Gold else Color.White,
-                        contentColor = DeepGreen
-                    )
-                ) {
-                    Text(if (exactTime) "ON" else "OFF")
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun AzanSettingsCard() {
-    val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
-
-    var azanEnabled by remember {
-        mutableStateOf(preferences.getBoolean("azan_enabled", false))
-    }
-
-    var vibrationEnabled by remember {
-        mutableStateOf(preferences.getBoolean("azan_vibration", true))
-    }
-
-    var soundName by remember {
-        mutableStateOf(preferences.getString("azan_sound", "Azan 1") ?: "Azan 1")
-    }
-
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = SoftGreen)
-    ) {
-        Column(Modifier.padding(16.dp)) {
             Text(
-                "🔊 Azan sazlamalary",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = DeepGreen
+                notificationSettingsSubtitle(language),
+                fontSize = 14.sp,
+                color = Green
             )
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = SoftGreen)
             ) {
-                Text("Azan", color = Ink)
-                Button(
-                    onClick = {
-                        azanEnabled = !azanEnabled
-                        preferences.edit()
-                            .putBoolean("azan_enabled", azanEnabled)
-                            .apply()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (azanEnabled) Gold else Color.White,
-                        contentColor = DeepGreen
-                    )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(if (azanEnabled) "ON" else "OFF")
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Вибрация", color = Ink)
-                Button(
-                    onClick = {
-                        vibrationEnabled = !vibrationEnabled
-                        preferences.edit()
-                            .putBoolean("azan_vibration", vibrationEnabled)
-                            .apply()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (vibrationEnabled) Gold else Color.White,
-                        contentColor = DeepGreen
+                    PrayerReminderCard(
+                        city = city,
+                        labels = labels,
+                        languageCode = language.code
                     )
-                ) {
-                    Text(if (vibrationEnabled) "ON" else "OFF")
-                }
-            }
-
-            Text("Звук: $soundName", color = Green)
-
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Azan 1", "Azan 2", "Gysga").forEach { sound ->
-                    Button(
-                        onClick = {
-                            soundName = sound
-                            preferences.edit()
-                                .putString("azan_sound", sound)
-                                .apply()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (soundName == sound) Gold else Color.White,
-                            contentColor = DeepGreen
-                        )
-                    ) {
-                        Text(sound)
-                    }
+                    PrayerNotificationCard()
+                    AzanSettingsCard()
                 }
             }
         }
+        item { Spacer(Modifier.height(18.dp)) }
     }
 }
 
