@@ -1,6 +1,5 @@
 name: Apply Home Zikr patch
 
-# trigger
 on:
   push:
     paths:
@@ -24,10 +23,12 @@ jobs:
           path = Path('app/src/main/java/com/msterjime/zikirdua/MainActivity.kt')
           text = path.read_text(encoding='utf-8')
           old = '''        item { QuickAction("☀", text.morningDhikr, text.morningAfter, onDhikr) }
-        item { QuickAction("☽", text.eveningDhikr, text.eveningAfter, onDhikr) }
-'''
+          item { QuickAction("☽", text.eveningDhikr, text.eveningAfter, onDhikr) }
+          '''
+          old = old.replace('          item', '        item')
           new = '''        item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
-'''
+          '''
+          new = new.replace('          ', '', 1)
           if old not in text:
               raise SystemExit('Expected home dhikr shortcut block not found')
           text = text.replace(old, new, 1)
