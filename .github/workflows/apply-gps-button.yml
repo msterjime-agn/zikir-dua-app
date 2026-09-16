@@ -26,25 +26,18 @@ jobs:
           if 'Text("◎ GPS"' in text:
               print('GPS button already exists')
           else:
-              marker = '''                    Spacer(Modifier.height(12.dp))
-                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
-              '''
-              marker = marker[:-14]
-              replacement = '''                    Spacer(Modifier.height(6.dp))
-                    Button(
+              needle = '                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)'
+              if needle not in text:
+                  raise SystemExit('Next prayer label not found')
+              block = '''                    Button(
                         onClick = onAutoLocation,
                         colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
                     ) {
                         Text("◎ GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
 '''
-              if marker not in text:
-                  marker = '                    Spacer(Modifier.height(12.dp))\n                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)\n'
-              if marker not in text:
-                  raise SystemExit('Home prayer marker not found')
-              text = text.replace(marker, replacement, 1)
+              text = text.replace(needle, block + needle, 1)
               path.write_text(text, encoding='utf-8')
           PY
 
