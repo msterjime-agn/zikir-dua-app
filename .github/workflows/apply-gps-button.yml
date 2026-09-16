@@ -1,0 +1,58 @@
+name: Apply GPS button patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-gps-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add manual GPS button to home card
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/src/main/java/com/msterjime/zikirdua/MainActivity.kt')
+          text = path.read_text(encoding='utf-8')
+          old = '''                    Text(
+                        regionLabel(city, language),
+                        color = Color.White.copy(alpha = 0.60f),
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+          '''
+          new = '''                    Text(
+                        regionLabel(city, language),
+                        color = Color.White.copy(alpha = 0.60f),
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Button(
+                        onClick = onAutoLocation,
+                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                    ) {
+                        Text("◎ GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.height(12.dp))
+          '''
+          if old not in text:
+              raise SystemExit('Home location block not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Commit GPS button
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/msterjime/zikirdua/MainActivity.kt
+          git commit -m "Add manual GPS auto-detect button"
+          git push
