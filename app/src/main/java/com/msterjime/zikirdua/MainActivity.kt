@@ -845,40 +845,88 @@ private fun TasbihScreen(text: UiText) {
     var count by remember { mutableIntStateOf(0) }
     var target by remember { mutableIntStateOf(33) }
 
-    Column(Modifier.fillMaxSize().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier.fillMaxSize().padding(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Spacer(Modifier.height(10.dp))
-        Text(text.tasbih, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-        Text("${text.target}: $target", color = Green)
+
+        Text(
+            text.tasbih,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = DeepGreen
+        )
+
+        Text(
+            "${text.target}: $target",
+            color = Green
+        )
+
         Spacer(Modifier.height(28.dp))
+
         Card(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = DeepGreen)
         ) {
             Column(
-                Modifier.fillMaxWidth().padding(vertical = 36.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .height(420.dp)
+                    .padding(top = 36.dp, bottom = 28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("$count", fontSize = 68.sp, fontWeight = FontWeight.Bold, color = Gold)
-                Text("/ $target", color = Color.White.copy(alpha = 0.75f))
-                Spacer(Modifier.height(22.dp))
+
+                Text(
+                    "$count",
+                    fontSize = 68.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Gold
+                )
+
+                Text(
+                    "/ $target",
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+
+                Spacer(Modifier.weight(1f))
+
                 Button(
                     onClick = { count += 1 },
                     modifier = Modifier.size(112.dp),
                     shape = RoundedCornerShape(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Gold,
+                        contentColor = DeepGreen
+                    )
                 ) {
-                    Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "+",
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
+
         Spacer(Modifier.height(18.dp))
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { target = 33; count = 0 }) { Text("33") }
-            Button(onClick = { target = 100; count = 0 }) { Text("100") }
+            Button(onClick = { target = 33; count = 0 }) {
+                Text("33")
+            }
+
+            Button(onClick = { target = 100; count = 0 }) {
+                Text("100")
+            }
+
             Button(
                 onClick = { count = 0 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Green
+                )
             ) {
                 Text(text.reset)
             }
