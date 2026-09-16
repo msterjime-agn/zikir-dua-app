@@ -22,19 +22,15 @@ jobs:
           from pathlib import Path
           path = Path('app/src/main/java/com/msterjime/zikirdua/MainActivity.kt')
           text = path.read_text(encoding='utf-8')
-          old = '''                    Text(
-                        regionLabel(city, language),
-                        color = Color.White.copy(alpha = 0.60f),
-                        fontSize = 12.sp
-                    )
-                    Spacer(Modifier.height(12.dp))
-          '''
-          new = '''                    Text(
-                        regionLabel(city, language),
-                        color = Color.White.copy(alpha = 0.60f),
-                        fontSize = 12.sp
-                    )
-                    Spacer(Modifier.height(6.dp))
+
+          if 'Text("◎ GPS"' in text:
+              print('GPS button already exists')
+          else:
+              marker = '''                    Spacer(Modifier.height(12.dp))
+                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+              '''
+              marker = marker[:-14]
+              replacement = '''                    Spacer(Modifier.height(6.dp))
                     Button(
                         onClick = onAutoLocation,
                         colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
@@ -42,10 +38,14 @@ jobs:
                         Text("◎ GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(Modifier.height(12.dp))
-          '''
-          if old not in text:
-              raise SystemExit('Home location block not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
+'''
+              if marker not in text:
+                  marker = '                    Spacer(Modifier.height(12.dp))\n                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)\n'
+              if marker not in text:
+                  raise SystemExit('Home prayer marker not found')
+              text = text.replace(marker, replacement, 1)
+              path.write_text(text, encoding='utf-8')
           PY
 
       - name: Commit GPS button
@@ -54,5 +54,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/java/com/msterjime/zikirdua/MainActivity.kt
-          git commit -m "Add manual GPS auto-detect button"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add manual GPS auto-detect button"
+            git push
+          fi
