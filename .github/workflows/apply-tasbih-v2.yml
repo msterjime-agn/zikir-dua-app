@@ -28,14 +28,15 @@ jobs:
               needle = '                    Text(text.nextPrayer, color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)'
               if needle not in text:
                   raise SystemExit('nextPrayer line not found')
-              block = '''                    Button(
-                        onClick = onAutoLocation,
-                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
-                    ) {
-                        Text("GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(Modifier.height(8.dp))
-'''
+              block = (
+                  '                    Button(\n'
+                  '                        onClick = onAutoLocation,\n'
+                  '                        colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)\n'
+                  '                    ) {\n'
+                  '                        Text("GPS", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)\n'
+                  '                    }\n'
+                  '                    Spacer(Modifier.height(8.dp))\n'
+              )
               text = text.replace(needle, block + needle, 1)
               path.write_text(text, encoding='utf-8')
           PY
