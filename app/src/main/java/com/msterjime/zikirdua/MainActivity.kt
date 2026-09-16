@@ -388,7 +388,11 @@ private fun HomeScreen(
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
                 Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("📍 ${city.name}", color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
-                    Text(city.region, color = Color.White.copy(alpha = 0.60f), fontSize = 12.sp)
+                    Text(
+                        if (city.region == "Aşgabat" || city.region == "Arkadag") "${city.region} şäheri" else "${city.region} welaýaty",
+                        color = Color.White.copy(alpha = 0.60f),
+                        fontSize = 12.sp
+                    )
                     Spacer(Modifier.height(12.dp))
                     Text("Indiki namaz", color = Color.White.copy(alpha = 0.78f), fontSize = 14.sp)
                     Text(nextPrayer.name, color = Gold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
