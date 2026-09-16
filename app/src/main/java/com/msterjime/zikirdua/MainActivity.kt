@@ -841,61 +841,105 @@ private fun SectionCard(symbol: String, title: String, subtitle: String) {
 }
 
 @Composable
-private fun TasbihScreen(text: UiText) {
+private fun TasbihScreen() {
     var count by remember { mutableIntStateOf(0) }
     var target by remember { mutableIntStateOf(33) }
 
     Column(
-        Modifier.fillMaxSize().padding(18.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(10.dp))
 
         Text(
-            text.tasbih,
+            "Tesbih",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = DeepGreen
         )
 
         Text(
-            "${text.target}: $target",
+            "Maksat: $target",
             color = Green
         )
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = {
+                    target = 33
+                    count = 0
+                }
+            ) {
+                Text("33")
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Button(
+                onClick = {
+                    target = 100
+                    count = 0
+                }
+            ) {
+                Text("100")
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Button(
+                onClick = { count = 0 },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Green
+                )
+            ) {
+                Text("Nola düşür")
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
 
         Card(
-            Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = DeepGreen)
         ) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .height(420.dp)
-                    .padding(top = 36.dp, bottom = 28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 36.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
             ) {
-
-                Text(
-                    "$count",
-                    fontSize = 68.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Gold
-                )
-
-                Text(
-                    "/ $target",
-                    color = Color.White.copy(alpha = 0.75f)
-                )
-
-                Spacer(Modifier.weight(1f))
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "$count",
+                        fontSize = 68.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Gold
+                    )
+                    Text(
+                        "/ $target",
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                }
 
                 Button(
                     onClick = { count += 1 },
-                    modifier = Modifier.size(112.dp),
-                    shape = RoundedCornerShape(56.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .size(120.dp),
+                    shape = RoundedCornerShape(60.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Gold,
                         contentColor = DeepGreen
@@ -907,28 +951,6 @@ private fun TasbihScreen(text: UiText) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { target = 33; count = 0 }) {
-                Text("33")
-            }
-
-            Button(onClick = { target = 100; count = 0 }) {
-                Text("100")
-            }
-
-            Button(
-                onClick = { count = 0 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Green
-                )
-            ) {
-                Text(text.reset)
             }
         }
     }
