@@ -813,6 +813,14 @@ LaunchedEffect("auto_location") {
     requestLocation()
 }
 
+    val text = uiText(language)
+    val prayerNames = prayerLabels(language)
+    val prayerTimes = remember(selectedCity, now.toLocalDate()) {
+        calculatePrayerTimes(now.toLocalDate(), selectedCity)
+    }
+    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
+    val countdown = countdownText(now, nextPrayer)
+
     LaunchedEffect("clock") {
         while (true) {
             now = ZonedDateTime.now(TurkmenistanZone)
@@ -836,14 +844,6 @@ LaunchedEffect("auto_location") {
             delay(60000)
         }
     }
-
-    val text = uiText(language)
-    val prayerNames = prayerLabels(language)
-    val prayerTimes = remember(selectedCity, now.toLocalDate()) {
-        calculatePrayerTimes(now.toLocalDate(), selectedCity)
-    }
-    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
-    val countdown = countdownText(now, nextPrayer)
 
     BackHandler(enabled = selectedTab != AppTab.HOME) {
         selectedTab = AppTab.HOME
