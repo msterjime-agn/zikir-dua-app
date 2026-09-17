@@ -536,7 +536,16 @@ private fun calculateAsrTime(
 }
 
 internal fun calculatePrayerTimes(date: LocalDate, city: City, context: Context? = null, asrFactorOverride: Double? = null): PrayerTimes {
-    val calculationContext = context ?: throw IllegalArgumentException("Context is required for parameter calculation")
+    val parameters = if (context != null) {
+        getPrayerCalculationParameters(context)
+    } else {
+        PrayerCalculationParameters(
+            fajrAngle = 18.0,
+            ishaAngle = 17.0,
+            maghribAngle = 0.833,
+            description = "default"
+        )
+    }
     val jDate = julianDate(date.year, date.monthValue, date.dayOfMonth) - city.longitude / (15.0 * 24.0)
 
     fun midDay(time: Double): Double {
@@ -571,12 +580,12 @@ internal fun calculatePrayerTimes(date: LocalDate, city: City, context: Context?
     var isha = 18.0
 
     repeat(2) {
-        fajr = computeTime(180.0 - getPrayerCalculationParameters(calculationContext).fajrAngle, fajr / 24.0)
+        fajr = computeTime(180.0 - parameters.fajrAngle, fajr / 24.0)
         sunrise = computeTime(179.167, sunrise / 24.0)
         dhuhr = midDay(dhuhr / 24.0)
         asr = asrTime(asrFactorOverride ?: 1.0, asr / 24.0)
-        maghrib = computeTime(getPrayerCalculationParameters(calculationContext).maghribAngle, maghrib / 24.0)
-        isha = computeTime(getPrayerCalculationParameters(calculationContext).ishaAngle, isha / 24.0)
+        maghrib = computeTime(parameters.maghribAngle, maghrib / 24.0)
+        isha = computeTime(parameters.ishaAngle, isha / 24.0)
     }
 
     val offset = 5.0 - city.longitude / 15.0
@@ -810,7 +819,7 @@ private fun findNextPrayer(
         if (candidate.isAfter(now)) return NextPrayer(name, now.toLocalDate(), time)
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
-    val tomorrow = calculatePrayerTimes(tomorrowDate, city, null)
+    val tomorrow = calculatePrayerTimes(tomorrowDate, city)
     return NextPrayer(labels.fajr, tomorrowDate, tomorrow.fajr)
 }
 
