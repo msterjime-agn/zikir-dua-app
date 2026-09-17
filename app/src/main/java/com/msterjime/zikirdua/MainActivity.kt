@@ -872,114 +872,76 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 
 @Composable
 private fun PrayerNotificationCard() {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
+    var selectedMinutes by remember {
+        mutableIntStateOf(preferences.getInt("reminder_minutes", 10))
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("🔔 Bildirişler", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
         Text("Öňünden duýdurmak", color = Green)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {}) { Text("5 min") }
-            Button(onClick = {}) { Text("10 min") }
-            Button(onClick = {}) { Text("15 min") }
-            Button(onClick = {}) { Text("30 min") }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(5, 10, 15, 30).forEach { minute ->
+                Button(
+                    onClick = {
+                        selectedMinutes = minute
+                        preferences.edit().putInt("reminder_minutes", minute).apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedMinutes == minute) Gold else SoftGreen,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text("$minute min")
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun AzanSettingsCard() {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
+    var azan by remember { mutableStateOf(preferences.getBoolean("azan_enabled", false)) }
+    var vibration by remember { mutableStateOf(preferences.getBoolean("vibration_enabled", true)) }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("📢 Azan sazlamalary", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {}) { Text("Azan ON") }
-            Button(onClick = {}) { Text("Wibrasiýa") }
-        }
-        Text("Ses: Azan 1", color = Green)
-    }
-}
-
-@Composable
-private fun NotificationSettingsScreen(
-    city: City,
-    labels: PrayerLabels,
-    language: AppLanguage
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
-            .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item { Spacer(Modifier.height(10.dp)) }
-        item {
-            Text(
-                notificationSettingsTitle(language),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = DeepGreen
-            )
-            Text(
-                notificationSettingsSubtitle(language),
-                fontSize = 14.sp,
-                color = Green
-            )
-        }
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = SoftGreen)
+            Button(
+                onClick = {
+                    azan = !azan
+                    preferences.edit().putBoolean("azan_enabled", azan).apply()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (azan) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    PrayerReminderCard(
-                        city = city,
-                        labels = labels,
-                        languageCode = language.code
-                    )
-                    PrayerNotificationCard()
-                    AzanSettingsCard()
-                }
+                Text(if (azan) "Azan ON" else "Azan OFF")
+            }
+
+            Button(
+                onClick = {
+                    vibration = !vibration
+                    preferences.edit().putBoolean("vibration_enabled", vibration).apply()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (vibration) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text(if (vibration) "Wibrasiýa ON" else "Wibrasiýa OFF")
             }
         }
-        item { Spacer(Modifier.height(18.dp)) }
-    }
-}
 
-@Composable
-private fun DhikrScreen(text: UiText) {
-    LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item { Spacer(Modifier.height(10.dp)) }
-        item {
-            Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text(text.chooseSection, color = Green, fontSize = 14.sp)
-        }
-        item { SectionCard("☀", text.morningDhikr, text.morningAfter) }
-        item { SectionCard("☽", text.eveningDhikr, text.eveningAfter) }
-        item { SectionCard("✦", text.afterPrayer, text.dhikrPrayers) }
-        item { SectionCard("☾", text.beforeSleep, text.eveningPrayers) }
-        item { SectionCard("♡", text.personalPrayer, text.savedPrayers) }
-    }
-}
-
-@Composable
-private fun SectionCard(symbol: String, title: String, subtitle: String) {
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(symbol, fontSize = 27.sp, color = Gold)
-            Column(Modifier.padding(start = 15.dp)) {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                Text(subtitle, color = Color.Gray, fontSize = 13.sp)
-            }
-        }
+        Text("Ses: Azan 1", color = Green)
     }
 }
 
