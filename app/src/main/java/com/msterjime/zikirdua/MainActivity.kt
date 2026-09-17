@@ -483,7 +483,7 @@ internal fun calculatePrayerTimesByMode(
         PrayerCalculationMode.MUFTIATE_TKM -> {
             // Здесь будет подключён точный алгоритм Муфтията ТКМ.
             // Пока используется стабильный расчёт как резерв до замены формул.
-            calculateMuftiateTKMPrayerTimes(date, city)
+            calculatePrayerTimesWithParameters(context, date, city)
         }
 
         PrayerCalculationMode.OFFLINE_BACKUP -> {
@@ -810,7 +810,7 @@ private fun findNextPrayer(
         if (candidate.isAfter(now)) return NextPrayer(name, now.toLocalDate(), time)
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
-    val tomorrow = calculatePrayerTimes(tomorrowDate, city)
+    val tomorrow = calculatePrayerTimesWithParameters(LocalContextHolder.context, tomorrowDate, city)
     return NextPrayer(labels.fajr, tomorrowDate, tomorrow.fajr)
 }
 
