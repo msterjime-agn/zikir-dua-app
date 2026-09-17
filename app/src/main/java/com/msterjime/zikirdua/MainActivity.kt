@@ -945,6 +945,94 @@ private fun AzanSettingsCard() {
     }
 }
 
+
+@Composable
+private fun NotificationSettingsScreen(
+    city: City,
+    labels: PrayerLabels,
+    language: AppLanguage
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                notificationSettingsTitle(language),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = DeepGreen
+            )
+            Text("📍 ${city.name}", color = Green)
+        }
+
+        item {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = SoftGreen)
+            ) {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PrayerNotificationCard()
+                    AzanSettingsCard()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DhikrScreen(text: UiText) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item { Spacer(Modifier.height(10.dp)) }
+
+        item {
+            Text(text.dhikrDuaTitle, fontSize = 28.sp,
+                fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text(text.chooseSection, color = Green)
+        }
+
+        item { SectionCard("☀", "Irdenki zikr", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3\nSayyidul Istighfar") }
+
+        item { SectionCard("☽", "Agşamky zikr", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3") }
+
+        item { SectionCard("✦", "Namazdan soň", "Astaghfirullah ×3\nAllahumma antas-salam...\nAyat al-Kursi\nSubhanallah ×33\nAlhamdulillah ×33\nAllahu Akbar ×33") }
+
+        item { SectionCard("☾", "Ýatmazdan öň", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3") }
+
+        item { SectionCard("♡", "Şahsy doga", "Öz dogalaryňy goşuň") }
+    }
+}
+
+@Composable
+private fun SectionCard(symbol: String, title: String, subtitle: String) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            Modifier.padding(18.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Text(symbol, fontSize = 26.sp, color = Gold)
+            Column(Modifier.padding(start = 14.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
+                Text(subtitle, color = Color.Gray, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
 @Composable
 private fun TasbihScreen(text: UiText, language: AppLanguage) {
     val context = LocalContext.current
