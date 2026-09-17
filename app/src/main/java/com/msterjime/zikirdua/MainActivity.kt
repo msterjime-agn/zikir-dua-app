@@ -990,55 +990,40 @@ private fun NotificationSettingsScreen(
     }
 }
 
+
 @Composable
 private fun DhikrScreen(text: UiText) {
     var selected by remember { mutableStateOf<String?>(null) }
-    var done by remember { mutableStateOf(setOf<Int>()) }
     var counts by remember { mutableStateOf(mutableMapOf<Int, Int>()) }
 
     val categories = linkedMapOf(
-        "☀ Irdenki zikr" to listOf(
-            DhikrItem("Ayat al-Kursi ×1", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
-                "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
-                "Когда: после Фаджра\nЦель: поминание Аллаха и защита"),
-            DhikrItem("Таухид ×100", "",
-                "La ilaha illallahu wahdahu la sharika lah",
-                "Когда: утром или в течение дня\nЦель: Таухид, поминание Аллаха и награда")
+        "☀ После Фаджра" to listOf(
+            DhikrItem("Аят аль-Курси ×1", "", "Ayat al-Kursi", "Цель: поминание Аллаха и защита"),
+            DhikrItem("Утренний зикр ×3", "", "Subhanallahi wa bihamdihi...", "Цель: прославление Аллаха"),
+            DhikrItem("Таухид ×100", "", "La ilaha illallahu wahdahu la sharika lah", "Цель: Таухид, поминание Аллаха и награда"),
+            DhikrItem("За стойкость в вере ×1", "", "Rabbana la tuzigh qulubana...", "Цель: сохранение веры и правильного пути")
         ),
-        "💼 Işden öň" to listOf(
-            DhikrItem("Дуа Мусы об облегчении ×1", "",
-                "Rabbi ishrah li sadri wa yassir li amri",
-                "Когда: перед работой, учёбой или важным делом\nЦель: облегчение дела")
+        "💼 Перед работой" to listOf(
+            DhikrItem("Дуа Мусы об облегчении дела ×1", "", "Rabbi ishrah li sadri wa yassir li amri", "Цель: облегчение дела, спокойствие и ясная речь"),
+            DhikrItem("Для знаний ×1", "", "Rabbi zidni ilma", "Цель: полезные знания и понимание")
         ),
-        "🕌 Namazdan soň" to listOf(
-            DhikrItem("Истигфар ×3", "أَسْتَغْفِرُ اللَّهَ",
-                "Astaghfirullah",
-                "Прошу Аллаха о прощении"),
-            DhikrItem("Субханаллах ×33", "",
-                "Subhanallah",
-                "Пречист Аллах"),
-            DhikrItem("Альхамдулиллях ×33", "",
-                "Alhamdulillah",
-                "Хвала Аллаху"),
-            DhikrItem("Аллаху Акбар ×33", "",
-                "Allahu Akbar",
-                "Аллах Велик")
+        "🕌 После намаза" to listOf(
+            DhikrItem("Истигфар ×3", "أَسْتَغْفِرُ اللَّهَ", "Astaghfirullah", "Прошу Аллаха о прощении"),
+            DhikrItem("Субханаллах ×33", "", "Subhanallah", "Пречист Аллах"),
+            DhikrItem("Альхамдулиллях ×33", "", "Alhamdulillah", "Хвала Аллаху"),
+            DhikrItem("Аллаху Акбар ×33", "", "Allahu Akbar", "Аллах Велик")
         ),
-        "❤️ Saglyk" to listOf(
-            DhikrItem("Дуа Айюба ×1", "",
-                "Anni massaniyad-durru wa Anta arhamur-rahimin",
-                "Когда: при болезни и боли\nЦель: просьба об облегчении и исцелении")
+        "❤️ За здоровье" to listOf(
+            DhikrItem("Дуа Айюба ×1", "", "Anni massaniyad-durru wa Anta arhamur-rahimin", "Цель: просьба об облегчении и исцелении"),
+            DhikrItem("Дуа об исцелении ×1", "", "Allahumma Rabb an-nas ishfi Antash-Shafi", "Цель: просьба Аллаха об исцелении")
         ),
-        "⚠ Kynçylyk" to listOf(
-            DhikrItem("Дуа Юнуса ×1", "",
-                "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
-                "Когда: при трудностях\nЦель: обращение к Аллаху за избавлением")
+        "⚠ При трудностях" to listOf(
+            DhikrItem("Дуа Юнуса", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Цель: избавление от трудности"),
+            DhikrItem("Упование на Аллаха", "", "Hasbunallahu wa ni'mal wakil", "Цель: таваккуль")
         ),
-        "🌙 Ýatmazdan öň" to listOf(
-            DhikrItem("Аят аль-Курси + 3 суры ×1",
-                "",
-                "Ayat al-Kursi, Al-Ikhlas, Al-Falaq, An-Nas",
-                "Цель: завершение дня и защита")
+        "🌙 Перед сном" to listOf(
+            DhikrItem("Аят аль-Курси ×1", "", "Ayat al-Kursi", "Цель: защита и завершение дня"),
+            DhikrItem("Аль-Ихляс, Аль-Фаляк, Ан-Нас ×3", "", "Al-Ikhlas • Al-Falaq • An-Nas", "Цель: защита перед сном")
         )
     )
 
@@ -1049,9 +1034,8 @@ private fun DhikrScreen(text: UiText) {
         ) {
             item {
                 Spacer(Modifier.height(10.dp))
-                Text(text.dhikrDuaTitle, fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text("Сегодня выполнено: ${done.size}", color = Green)
+                Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                Text("Ежедневный порядок зикра и дуа", color = Green)
             }
 
             items(categories.keys.toList()) { category ->
@@ -1060,50 +1044,42 @@ private fun DhikrScreen(text: UiText) {
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text(category, fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold, color = DeepGreen)
-                        Text("Открыть зикры и дуа", color = Color.Gray)
-                    }
+                    Text(category, Modifier.padding(18.dp), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
                 }
             }
         }
     } else {
-        val items = categories[selected] ?: emptyList()
+        val list = categories[selected] ?: emptyList()
 
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Spacer(Modifier.height(10.dp))
                 Button(onClick = { selected = null }) { Text("← Назад") }
-                Text(selected ?: "", fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text("Сегодня выполнено: ${done.size} / ${items.size}", color = Green)
+                Text(selected ?: "", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             }
 
-            items(items.size) { index ->
-                val item = items[index]
+            items(list.size) { index ->
+                val item = list[index]
+                val value = counts[index] ?: 0
+
                 Card(
                     Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text(item.title, fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold, color = DeepGreen)
-
-                        if (item.arabic.isNotBlank())
-                            Text(item.arabic, fontSize = 22.sp, color = Gold)
-
+                    Column(Modifier.padding(16.dp)) {
+                        Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                        if (item.arabic.isNotBlank()) Text(item.arabic, color = Gold, fontSize = 22.sp)
                         Text(item.transliteration, color = Green)
                         Text(item.translation, color = Color.Gray)
 
                         Button(onClick = {
-                            done = if (index in done) done - index else done + index
+                            counts[index] = value + 1
+                            counts = counts.toMutableMap()
                         }) {
-                            Text(if (index in done) "✓ Выполнено" else "0 / цель")
+                            Text("$value  +1")
                         }
                     }
                 }
