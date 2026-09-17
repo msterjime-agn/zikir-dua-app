@@ -960,6 +960,9 @@ private fun NotificationSettingsScreen(
     labels: PrayerLabels,
     language: AppLanguage
 ) {
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
@@ -995,7 +998,6 @@ private fun NotificationSettingsScreen(
                     }
 
                     Text("🕌 Уведомление при наступлении времени намаза", color = DeepGreen)
-                    Text("Следующий этап: подключение системного Android уведомления", color = Green)
                     Button(
                         onClick = {
                             prayerTimeNotification = !prayerTimeNotification
@@ -1044,8 +1046,7 @@ private fun DhikrScreen(text: UiText) {
             DhikrItem("Дуа об исцелении ×1", "", "Allahumma Rabb an-nas ishfi Antash-Shafi", "Цель: просьба Аллаха об исцелении")
         ),
         "⚠ При трудностях" to listOf(
-            DhikrItem("Дуа пророка Юнуса (а.с.)", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Источник: Коран 21:87
-Цель: избавление от трудности"),
+            DhikrItem("Дуа пророка Юнуса (а.с.)", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Источник: Коран 21:87\nЦель: избавление от трудности"),
             DhikrItem("Упование на Аллаха", "", "Hasbunallahu wa ni'mal wakil", "Цель: таваккуль")
         ),
         "🌙 Перед сном" to listOf(
