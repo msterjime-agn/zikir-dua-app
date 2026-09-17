@@ -7,6 +7,8 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Vibrator
+import android.os.VibrationEffect
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -87,6 +89,21 @@ private val SoftGreen = Color(0xFFEAF2EE)
 private val Gold = Color(0xFFC8A95B)
 private val Ivory = Color(0xFFF8F6EF)
 private val Ink = Color(0xFF1F2925)
+
+
+private fun vibrateShort(context: Context) {
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    vibrator?.vibrate(
+        VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE)
+    )
+}
+
+private fun vibrateComplete(context: Context) {
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    vibrator?.vibrate(
+        VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE)
+    )
+}
 
 private val AppColors = lightColorScheme(
     primary = Green,
@@ -1022,37 +1039,183 @@ private fun NotificationSettingsScreen(
 @Composable
 private fun DhikrScreen(text: UiText) {
     var selected by remember { mutableStateOf<String?>(null) }
-    var counts by remember { mutableStateOf(mutableMapOf<Int, Int>()) }
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+    var counts by remember {
+        mutableStateOf(
+            mutableMapOf<Int, Int>().apply {
+                for (i in 0..100) {
+                    val saved = preferences.getInt("dhikr_count_$i", 0)
+                    if (saved > 0) {
+                        put(i, saved)
+                    }
+                }
+            }
+        )
+    }
+
+    fun saveDhikrCount(index: Int, value: Int) {
+        preferences.edit().putInt("dhikr_count_$index", value).apply()
+    }
 
     val categories = linkedMapOf(
         "☀ После Фаджра" to listOf(
-            DhikrItem("Аят аль-Курси ×1", "", "Ayat al-Kursi", "Цель: поминание Аллаха и защита"),
-            DhikrItem("Утренний зикр ×3", "", "Subhanallahi wa bihamdihi...", "Цель: прославление Аллаха"),
-            DhikrItem("Таухид ×100", "", "La ilaha illallahu wahdahu la sharika lah", "Цель: Таухид, поминание Аллаха и награда"),
-            DhikrItem("За стойкость в вере ×1", "", "Rabbana la tuzigh qulubana...", "Цель: сохранение веры и правильного пути")
+            DhikrItem(
+                "Аят аль-Курси ×1",
+                "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
+                "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
+                "Читать Аят аль-Курси.",
+                "После Фаджра",
+                "Поминание Аллаха и защита.",
+                "Коран 2:255",
+                1
+            ),
+            DhikrItem(
+                "Утренний зикр ×3",
+                "",
+                "Subhanallahi wa bihamdihi, adada khalqihi...",
+                "Пречист Аллах и хвала Ему.",
+                "После Фаджра",
+                "Прославление Аллаха.",
+                "Хадис"
+            ),
+            DhikrItem(
+                "Таухид ×100",
+                "",
+                "La ilaha illallahu wahdahu la sharika lah...",
+                "Нет божества кроме Аллаха, у Которого нет сотоварища.",
+                "Утром или в течение дня",
+                "Таухид, поминание Аллаха и награда.",
+                "Хадисы",
+                100
+            )
         ),
         "💼 Перед работой" to listOf(
-            DhikrItem("Дуа Мусы об облегчении дела ×1", "", "Rabbi ishrah li sadri wa yassir li amri", "Цель: облегчение дела, спокойствие и ясная речь"),
-            DhikrItem("Для знаний ×1", "", "Rabbi zidni ilma", "Цель: полезные знания и понимание")
+            DhikrItem(
+                "Дуа пророка Мусы (а.с.) об облегчении дела ×1",
+                "",
+                "Rabbi ishrah li sadri wa yassir li amri...",
+                "Господи! Раскрой мою грудь, облегчи моё дело.",
+                "Перед работой, разговором, экзаменом",
+                "Облегчение дела, спокойствие и ясная речь.",
+                "Коран 20:25–28"
+            ),
+            DhikrItem(
+                "Для знаний ×1",
+                "",
+                "Rabbi zidni ilma",
+                "Господи! Приумножь мои знания.",
+                "Перед учёбой и интеллектуальной работой",
+                "Полезные знания и понимание.",
+                "Коран 20:114"
+            )
         ),
         "🕌 После намаза" to listOf(
-            DhikrItem("Истигфар ×3", "أَسْتَغْفِرُ اللَّهَ", "Astaghfirullah", "Прошу Аллаха о прощении"),
-            DhikrItem("Субханаллах ×33", "", "Subhanallah", "Пречист Аллах"),
-            DhikrItem("Альхамдулиллях ×33", "", "Alhamdulillah", "Хвала Аллаху"),
-            DhikrItem("Аллаху Акбар ×33", "", "Allahu Akbar", "Аллах Велик")
-        ),
-        "❤️ За здоровье" to listOf(
-            DhikrItem("Дуа Айюба ×1", "", "Anni massaniyad-durru wa Anta arhamur-rahimin", "Цель: просьба об облегчении и исцелении"),
-            DhikrItem("Дуа об исцелении ×1", "", "Allahumma Rabb an-nas ishfi Antash-Shafi", "Цель: просьба Аллаха об исцелении")
+            DhikrItem(
+                "Истигфар ×3",
+                "أَسْتَغْفِرُ اللَّهَ",
+                "Astaghfirullah",
+                "Прошу Аллаха о прощении.",
+                "После обязательного намаза",
+                "Просьба о прощении.",
+                "Сунна",
+                3
+            ),
+            DhikrItem(
+                "Субханаллах ×33",
+                "",
+                "Subhanallah",
+                "Пречист Аллах.",
+                "После намаза",
+                "Прославление Аллаха.",
+                "Сунна",
+                33
+            ),
+            DhikrItem(
+                "Альхамдулиллях ×33",
+                "",
+                "Alhamdulillah",
+                "Хвала Аллаху.",
+                "После намаза",
+                "Благодарность Аллаху.",
+                "Сунна",
+                33
+            ),
+            DhikrItem(
+                "Аллаху Акбар ×33",
+                "",
+                "Allahu Akbar",
+                "Аллах Велик.",
+                "После намаза",
+                "Возвеличивание Аллаха.",
+                "Сунна",
+                33
+            )
         ),
         "⚠ При трудностях" to listOf(
-            DhikrItem("Дуа пророка Юнуса (а.с.)", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Источник: Коран 21:87\nЦель: избавление от трудности"),
-            DhikrItem("Упование на Аллаха", "", "Hasbunallahu wa ni'mal wakil", "Цель: таваккуль")
+            DhikrItem(
+                "Дуа пророка Юнуса (а.с.)",
+                "",
+                "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
+                "Нет божества кроме Тебя. Пречист Ты! Поистине, я был из числа несправедливых.",
+                "При беде, тревоге и тяжёлой ситуации",
+                "Обращение к Аллаху за избавлением от трудности.",
+                "Коран 21:87"
+            )
         ),
         "🌙 Перед сном" to listOf(
-            DhikrItem("Аят аль-Курси ×1", "", "Ayat al-Kursi", "Цель: защита и завершение дня"),
-            DhikrItem("Аль-Ихляс, Аль-Фаляк, Ан-Нас ×3", "", "Al-Ikhlas • Al-Falaq • An-Nas", "Цель: защита перед сном")
+            DhikrItem(
+                "Аят аль-Курси ×1",
+                "",
+                "Ayat al-Kursi",
+                "Читать Аят аль-Курси.",
+                "Перед сном",
+                "Завершение дня и просьба о защите.",
+                "Коран 2:255"
+            )
+        ),
+
+        "❤️ За здоровье" to listOf(
+            DhikrItem(
+                "Дуа пророка Айюба (а.с.) при болезни ×1",
+                "",
+                "Anni massaniyad-durru wa Anta arhamur-rahimin",
+                "Меня коснулась беда, а Ты — Милостивейший из милостивых.",
+                "При болезни, слабости или боли",
+                "Просьба об облегчении и исцелении.",
+                "Коран 21:83"
+            ),
+            DhikrItem(
+                "Дуа об исцелении ×1",
+                "",
+                "Allahumma Rabb an-nas, azhibil-ba's, ishfi Antash-Shafi",
+                "О Аллах, Господь людей, удали болезнь и исцели.",
+                "При болезни — для себя или другого человека",
+                "Просьба об исцелении.",
+                "Хадис"
+            )
+        ),
+        "🌙 Вечером" to listOf(
+            DhikrItem(
+                "Дуа покаяния ×1",
+                "",
+                "Rabbana zalamna anfusana...",
+                "Господь наш! Мы поступили несправедливо по отношению к самим себе.",
+                "Вечером или после ошибки",
+                "Покаяние и прощение.",
+                "Коран 7:23"
+            ),
+            DhikrItem(
+                "Дуа Мусы за себя и близких ×1",
+                "",
+                "Rabbighfir li wa li-akhi...",
+                "Господи! Прости меня и моего брата.",
+                "Вечером или при просьбе за близких",
+                "Прощение и милость Аллаха.",
+                "Коран 7:151"
+            )
         )
+
     )
 
     if (selected == null) {
@@ -1063,7 +1226,7 @@ private fun DhikrScreen(text: UiText) {
             item {
                 Spacer(Modifier.height(10.dp))
                 Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text("Ежедневный порядок зикра и дуа", color = Green)
+                Text(text.dhikrPrayers, color = Green)
             }
 
             items(categories.keys.toList()) { category ->
@@ -1103,11 +1266,28 @@ private fun DhikrScreen(text: UiText) {
                         Text(item.transliteration, color = Green)
                         Text(item.translation, color = Color.Gray)
 
+                        if (item.whenToRead.isNotBlank()) {
+                            Text("Когда: ${item.whenToRead}", color = Green)
+                        }
+                        if (item.purpose.isNotBlank()) {
+                            Text("Цель: ${item.purpose}", color = Green)
+                        }
+                        if (item.source.isNotBlank()) {
+                            Text("Источник: ${item.source}", color = Gold)
+                        }
+
                         Button(onClick = {
-                            counts[index] = value + 1
+                            val next = value + 1
+                            counts[index] = if (next >= item.countTarget) 0 else next
+                            saveDhikrCount(index, counts[index] ?: 0)
                             counts = counts.toMutableMap()
+                            if (next >= item.countTarget) {
+                                vibrateComplete(LocalContext.current)
+                            } else {
+                                vibrateShort(LocalContext.current)
+                            }
                         }) {
-                            Text("$value  +1")
+                            Text("$value / ${item.countTarget}  +1")
                         }
                     }
                 }
@@ -1314,7 +1494,16 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                 }
 
                 Button(
-                    onClick = { saveCount(count + 1) },
+                    onClick = {
+                        val next = count + 1
+                        vibrateShort(LocalContext.current)
+                        if (target > 0 && next >= target) {
+                            vibrateComplete(LocalContext.current)
+                            saveCount(0)
+                        } else {
+                            saveCount(next)
+                        }
+                    },
                     modifier = Modifier.align(Alignment.BottomCenter).size(120.dp),
                     shape = RoundedCornerShape(60.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
@@ -1333,7 +1522,11 @@ private data class DhikrItem(
     val title: String,
     val arabic: String,
     val transliteration: String,
-    val translation: String
+    val translation: String,
+    val whenToRead: String = "",
+    val purpose: String = "",
+    val source: String = "",
+    val countTarget: Int = 1
 )
 
 private val MorningDhikr = listOf(
