@@ -993,59 +993,82 @@ private fun NotificationSettingsScreen(
 @Composable
 private fun DhikrScreen(text: UiText) {
     var selected by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf(setOf<Int>()) }
+    var done by remember { mutableStateOf(setOf<Int>()) }
+    var counts by remember { mutableStateOf(mutableMapOf<Int, Int>()) }
 
-    val categories = mapOf(
+    val categories = linkedMapOf(
         "☀ Irdenki zikr" to listOf(
             DhikrItem("Ayat al-Kursi ×1", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
                 "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
-                "Поминание Аллаха и защита"),
-            DhikrItem("Taýhid ×100", "",
-                "La ilaha illallahu wahdahu la sharika lah...",
-                "Таухид, поминание Аллаха и награда")
+                "Когда: после Фаджра\nЦель: поминание Аллаха и защита"),
+            DhikrItem("Таухид ×100", "",
+                "La ilaha illallahu wahdahu la sharika lah",
+                "Когда: утром или в течение дня\nЦель: Таухид, поминание Аллаха и награда")
         ),
         "💼 Işden öň" to listOf(
-            DhikrItem("Dua Musa ×1", "",
+            DhikrItem("Дуа Мусы об облегчении ×1", "",
                 "Rabbi ishrah li sadri wa yassir li amri",
-                "Облегчение дела, спокойствие и ясная речь")
+                "Когда: перед работой, учёбой или важным делом\nЦель: облегчение дела")
         ),
         "🕌 Namazdan soň" to listOf(
-            DhikrItem("Istighfar ×3", "أَسْتَغْفِرُ اللَّهَ",
+            DhikrItem("Истигфар ×3", "أَسْتَغْفِرُ اللَّهَ",
                 "Astaghfirullah",
                 "Прошу Аллаха о прощении"),
-            DhikrItem("Tasbih ×33", "",
+            DhikrItem("Субханаллах ×33", "",
                 "Subhanallah",
                 "Пречист Аллах"),
-            DhikrItem("Tahmid ×33", "",
+            DhikrItem("Альхамдулиллях ×33", "",
                 "Alhamdulillah",
                 "Хвала Аллаху"),
-            DhikrItem("Takbir ×33", "",
+            DhikrItem("Аллаху Акбар ×33", "",
                 "Allahu Akbar",
                 "Аллах Велик")
         ),
-        "🤲 Şahsy doga" to listOf(
-            DhikrItem("Dua", "",
-                "Allahumma-ghfir li wa li-walidayya",
-                "Прощение для себя, родителей и верующих")
-        ),
         "❤️ Saglyk" to listOf(
-            DhikrItem("Dua Айюба", "",
+            DhikrItem("Дуа Айюба ×1", "",
                 "Anni massaniyad-durru wa Anta arhamur-rahimin",
-                "Просьба об облегчении и исцелении")
+                "Когда: при болезни и боли\nЦель: просьба об облегчении и исцелении")
         ),
         "⚠ Kynçylyk" to listOf(
-            DhikrItem("Dua Yunusa", "",
+            DhikrItem("Дуа Юнуса ×1", "",
                 "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
-                "Обращение к Аллаху за избавлением от трудности")
+                "Когда: при трудностях\nЦель: обращение к Аллаху за избавлением")
         ),
         "🌙 Ýatmazdan öň" to listOf(
-            DhikrItem("Ayat al-Kursi ×1", "",
-                "Ayat al-Kursi",
-                "Защита и завершение дня поминанием Аллаха")
+            DhikrItem("Аят аль-Курси + 3 суры ×1",
+                "",
+                "Ayat al-Kursi, Al-Ikhlas, Al-Falaq, An-Nas",
+                "Цель: завершение дня и защита")
         )
     )
 
-    if (selected != null) {
+    if (selected == null) {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Spacer(Modifier.height(10.dp))
+                Text(text.dhikrDuaTitle, fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold, color = DeepGreen)
+                Text("Сегодня выполнено: ${done.size}", color = Green)
+            }
+
+            items(categories.keys.toList()) { category ->
+                Card(
+                    Modifier.fillMaxWidth().clickable { selected = category },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Text(category, fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold, color = DeepGreen)
+                        Text("Открыть зикры и дуа", color = Color.Gray)
+                    }
+                }
+            }
+        }
+    } else {
         val items = categories[selected] ?: emptyList()
 
         LazyColumn(
@@ -1053,16 +1076,11 @@ private fun DhikrScreen(text: UiText) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Button(onClick = { selected = null }) {
-                    Text("← ${text.dhikrDuaTitle}")
-                }
-                Text(
-                    selected ?: "",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DeepGreen
-                )
-                Text("Сегодня выполнено: ${progress.size} из ${items.size}", color = Green)
+                Spacer(Modifier.height(10.dp))
+                Button(onClick = { selected = null }) { Text("← Назад") }
+                Text(selected ?: "", fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold, color = DeepGreen)
+                Text("Сегодня выполнено: ${done.size} / ${items.size}", color = Green)
             }
 
             items(items.size) { index ->
@@ -1073,44 +1091,20 @@ private fun DhikrScreen(text: UiText) {
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(Modifier.padding(18.dp)) {
-                        Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                        Spacer(Modifier.height(8.dp))
-                        if (item.arabic.isNotBlank()) Text(item.arabic, color = Gold, fontSize = 22.sp)
-                        Text(item.transliteration, color = Green)
-                        Text("Перевод: ${item.translation}", color = Color.Gray)
-                        Button(
-                            onClick = {
-                                progress =
-                                    if (index in progress) progress - index
-                                    else progress + index
-                            }
-                        ) {
-                            Text(if (index in progress) "✓ Прочитано" else "0 / цель")
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Spacer(Modifier.height(10.dp))
-                Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text("Сегодня выполнено: ${progress.size}", color = Green)
-            }
+                        Text(item.title, fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold, color = DeepGreen)
 
-            items(categories.keys.toList()) { category ->
-                Card(
-                    Modifier.fillMaxWidth().clickable { selected = category },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text(category, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                        Text("Открыть зикры и дуа", color = Color.Gray)
+                        if (item.arabic.isNotBlank())
+                            Text(item.arabic, fontSize = 22.sp, color = Gold)
+
+                        Text(item.transliteration, color = Green)
+                        Text(item.translation, color = Color.Gray)
+
+                        Button(onClick = {
+                            done = if (index in done) done - index else done + index
+                        }) {
+                            Text(if (index in done) "✓ Выполнено" else "0 / цель")
+                        }
                     }
                 }
             }
