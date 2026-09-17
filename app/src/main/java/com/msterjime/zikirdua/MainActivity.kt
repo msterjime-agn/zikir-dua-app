@@ -810,7 +810,7 @@ private fun findNextPrayer(
         if (candidate.isAfter(now)) return NextPrayer(name, now.toLocalDate(), time)
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
-    val tomorrow = calculatePrayerTimesWithParameters(LocalContextHolder.context, tomorrowDate, city)
+    val tomorrow = calculatePrayerTimes(tomorrowDate, city, null)
     return NextPrayer(labels.fajr, tomorrowDate, tomorrow.fajr)
 }
 
