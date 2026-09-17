@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -502,9 +503,9 @@ private fun countdownText(now: ZonedDateTime, next: NextPrayer): String {
 
 enum class AppTab(val symbol: String) {
     HOME("⌂"),
-    PRAYER("☾"),
     DHIKR("✦"),
-    TASBIH("●")
+    TASBIH("●"),
+    PRAYER("☾")
 }
 
 private fun notificationSettingsTitle(language: AppLanguage): String = when (language) {
@@ -718,6 +719,10 @@ LaunchedEffect("auto_location") {
     }
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
+
+    BackHandler(enabled = selectedTab != AppTab.HOME) {
+        selectedTab = AppTab.HOME
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -984,6 +989,27 @@ private fun NotificationSettingsScreen(
                 ) {
                     PrayerNotificationCard()
                     AzanSettingsCard()
+
+                    var prayerTimeNotification by remember {
+                        mutableStateOf(preferences.getBoolean("prayer_time_notification", false))
+                    }
+
+                    Text("🕌 Уведомление при наступлении времени намаза", color = DeepGreen)
+                    Text("Следующий этап: подключение системного Android уведомления", color = Green)
+                    Button(
+                        onClick = {
+                            prayerTimeNotification = !prayerTimeNotification
+                            preferences.edit()
+                                .putBoolean("prayer_time_notification", prayerTimeNotification)
+                                .apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (prayerTimeNotification) Gold else SoftGreen,
+                            contentColor = DeepGreen
+                        )
+                    ) {
+                        Text(if (prayerTimeNotification) "ON" else "OFF")
+                    }
                 }
             }
         }
@@ -1018,7 +1044,8 @@ private fun DhikrScreen(text: UiText) {
             DhikrItem("Дуа об исцелении ×1", "", "Allahumma Rabb an-nas ishfi Antash-Shafi", "Цель: просьба Аллаха об исцелении")
         ),
         "⚠ При трудностях" to listOf(
-            DhikrItem("Дуа Юнуса", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Цель: избавление от трудности"),
+            DhikrItem("Дуа пророка Юнуса (а.с.)", "", "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Источник: Коран 21:87
+Цель: избавление от трудности"),
             DhikrItem("Упование на Аллаха", "", "Hasbunallahu wa ni'mal wakil", "Цель: таваккуль")
         ),
         "🌙 Перед сном" to listOf(
