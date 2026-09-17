@@ -992,83 +992,125 @@ private fun NotificationSettingsScreen(
 
 @Composable
 private fun DhikrScreen(text: UiText) {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+    var selected by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf(setOf<Int>()) }
 
-    val sections = listOf(
+    val categories = mapOf(
         "☀ Irdenki zikr" to listOf(
-            "Ayat al-Kursi",
-            "Al-Ikhlas ×3",
-            "Al-Falaq ×3",
-            "An-Nas ×3",
-            "Sayyidul Istighfar",
-            "Subhanallahi wa bihamdihi ×100"
+            DhikrItem("Ayat al-Kursi ×1", "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
+                "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
+                "Поминание Аллаха и защита"),
+            DhikrItem("Taýhid ×100", "",
+                "La ilaha illallahu wahdahu la sharika lah...",
+                "Таухид, поминание Аллаха и награда")
         ),
-        "☽ Agşamky zikr" to listOf(
-            "Ayat al-Kursi",
-            "Al-Ikhlas ×3",
-            "Al-Falaq ×3",
-            "An-Nas ×3",
-            "Gorag dogalary"
+        "💼 Işden öň" to listOf(
+            DhikrItem("Dua Musa ×1", "",
+                "Rabbi ishrah li sadri wa yassir li amri",
+                "Облегчение дела, спокойствие и ясная речь")
         ),
-        "✦ Namazdan soň" to listOf(
-            "Astaghfirullah ×3",
-            "Allahumma antas-salam...",
-            "Ayat al-Kursi",
-            "Subhanallah ×33",
-            "Alhamdulillah ×33",
-            "Allahu Akbar ×33",
-            "La ilaha illallah ×1"
+        "🕌 Namazdan soň" to listOf(
+            DhikrItem("Istighfar ×3", "أَسْتَغْفِرُ اللَّهَ",
+                "Astaghfirullah",
+                "Прошу Аллаха о прощении"),
+            DhikrItem("Tasbih ×33", "",
+                "Subhanallah",
+                "Пречист Аллах"),
+            DhikrItem("Tahmid ×33", "",
+                "Alhamdulillah",
+                "Хвала Аллаху"),
+            DhikrItem("Takbir ×33", "",
+                "Allahu Akbar",
+                "Аллах Велик")
         ),
-        "☾ Ýatmazdan öň" to listOf(
-            "Ayat al-Kursi",
-            "Al-Ikhlas ×3",
-            "Al-Falaq ×3",
-            "An-Nas ×3"
+        "🤲 Şahsy doga" to listOf(
+            DhikrItem("Dua", "",
+                "Allahumma-ghfir li wa li-walidayya",
+                "Прощение для себя, родителей и верующих")
         ),
-        "♡ Şahsy doga" to listOf(
-            "Öz dogalaryňy goşuň"
+        "❤️ Saglyk" to listOf(
+            DhikrItem("Dua Айюба", "",
+                "Anni massaniyad-durru wa Anta arhamur-rahimin",
+                "Просьба об облегчении и исцелении")
+        ),
+        "⚠ Kynçylyk" to listOf(
+            DhikrItem("Dua Yunusa", "",
+                "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
+                "Обращение к Аллаху за избавлением от трудности")
+        ),
+        "🌙 Ýatmazdan öň" to listOf(
+            DhikrItem("Ayat al-Kursi ×1", "",
+                "Ayat al-Kursi",
+                "Защита и завершение дня поминанием Аллаха")
         )
     )
 
-    LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Spacer(Modifier.height(10.dp))
-            Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text(text.chooseSection, color = Green)
-        }
+    if (selected != null) {
+        val items = categories[selected] ?: emptyList()
 
-        items(sections) { section ->
-            val checked = remember(section.first) {
-                mutableStateOf(
-                    prefs.getBoolean("dhikr_${section.first}", false)
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Button(onClick = { selected = null }) {
+                    Text("← ${text.dhikrDuaTitle}")
+                }
+                Text(
+                    selected ?: "",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepGreen
                 )
+                Text("Сегодня выполнено: ${progress.size} из ${items.size}", color = Green)
             }
 
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(Modifier.padding(18.dp)) {
-                    Text(section.first, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            items(items.size) { index ->
+                val item = items[index]
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                        Spacer(Modifier.height(8.dp))
+                        if (item.arabic.isNotBlank()) Text(item.arabic, color = Gold, fontSize = 22.sp)
+                        Text(item.transliteration, color = Green)
+                        Text("Перевод: ${item.translation}", color = Color.Gray)
+                        Button(
+                            onClick = {
+                                progress =
+                                    if (index in progress) progress - index
+                                    else progress + index
+                            }
+                        ) {
+                            Text(if (index in progress) "✓ Прочитано" else "0 / цель")
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Spacer(Modifier.height(10.dp))
+                Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                Text("Сегодня выполнено: ${progress.size}", color = Green)
+            }
 
-                    section.second.forEach { item ->
-                        Text(
-                            text = (if (checked.value) "✓ " else "○ ") + item,
-                            modifier = Modifier
-                                .padding(top = 8.dp)
-                                .clickable {
-                                    checked.value = !checked.value
-                                    prefs.edit()
-                                        .putBoolean("dhikr_${section.first}", checked.value)
-                                        .apply()
-                                },
-                            color = if (checked.value) Green else Color.Gray
-                        )
+            items(categories.keys.toList()) { category ->
+                Card(
+                    Modifier.fillMaxWidth().clickable { selected = category },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Text(category, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                        Text("Открыть зикры и дуа", color = Color.Gray)
                     }
                 }
             }
