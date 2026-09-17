@@ -879,12 +879,15 @@ private fun PrayerNotificationCard() {
         mutableIntStateOf(preferences.getInt("reminder_minutes", 10))
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("🔔 Bildirişler", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
         Text("Öňünden duýdurmak", color = Green)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(5, 10, 15, 30).forEach { minute ->
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(listOf(5, 10, 15, 30)) { minute ->
                 Button(
                     onClick = {
                         selectedMinutes = minute
@@ -989,45 +992,85 @@ private fun NotificationSettingsScreen(
 
 @Composable
 private fun DhikrScreen(text: UiText) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
+
+    val sections = listOf(
+        "☀ Irdenki zikr" to listOf(
+            "Ayat al-Kursi",
+            "Al-Ikhlas ×3",
+            "Al-Falaq ×3",
+            "An-Nas ×3",
+            "Sayyidul Istighfar",
+            "Subhanallahi wa bihamdihi ×100"
+        ),
+        "☽ Agşamky zikr" to listOf(
+            "Ayat al-Kursi",
+            "Al-Ikhlas ×3",
+            "Al-Falaq ×3",
+            "An-Nas ×3",
+            "Gorag dogalary"
+        ),
+        "✦ Namazdan soň" to listOf(
+            "Astaghfirullah ×3",
+            "Allahumma antas-salam...",
+            "Ayat al-Kursi",
+            "Subhanallah ×33",
+            "Alhamdulillah ×33",
+            "Allahu Akbar ×33",
+            "La ilaha illallah ×1"
+        ),
+        "☾ Ýatmazdan öň" to listOf(
+            "Ayat al-Kursi",
+            "Al-Ikhlas ×3",
+            "Al-Falaq ×3",
+            "An-Nas ×3"
+        ),
+        "♡ Şahsy doga" to listOf(
+            "Öz dogalaryňy goşuň"
+        )
+    )
+
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { Spacer(Modifier.height(10.dp)) }
-
         item {
-            Text(text.dhikrDuaTitle, fontSize = 28.sp,
-                fontWeight = FontWeight.Bold, color = DeepGreen)
+            Spacer(Modifier.height(10.dp))
+            Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             Text(text.chooseSection, color = Green)
         }
 
-        item { SectionCard("☀", "Irdenki zikr", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3\nSayyidul Istighfar") }
+        items(sections) { section ->
+            val checked = remember(section.first) {
+                mutableStateOf(
+                    prefs.getBoolean("dhikr_${section.first}", false)
+                )
+            }
 
-        item { SectionCard("☽", "Agşamky zikr", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3") }
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Text(section.first, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
 
-        item { SectionCard("✦", "Namazdan soň", "Astaghfirullah ×3\nAllahumma antas-salam...\nAyat al-Kursi\nSubhanallah ×33\nAlhamdulillah ×33\nAllahu Akbar ×33") }
-
-        item { SectionCard("☾", "Ýatmazdan öň", "Ayat al-Kursi\nAl-Ikhlas ×3\nAl-Falaq ×3\nAn-Nas ×3") }
-
-        item { SectionCard("♡", "Şahsy doga", "Öz dogalaryňy goşuň") }
-    }
-}
-
-@Composable
-private fun SectionCard(symbol: String, title: String, subtitle: String) {
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            Modifier.padding(18.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Text(symbol, fontSize = 26.sp, color = Gold)
-            Column(Modifier.padding(start = 14.dp)) {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                Text(subtitle, color = Color.Gray, fontSize = 13.sp)
+                    section.second.forEach { item ->
+                        Text(
+                            text = (if (checked.value) "✓ " else "○ ") + item,
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .clickable {
+                                    checked.value = !checked.value
+                                    prefs.edit()
+                                        .putBoolean("dhikr_${section.first}", checked.value)
+                                        .apply()
+                                },
+                            color = if (checked.value) Green else Color.Gray
+                        )
+                    }
+                }
             }
         }
     }
@@ -1237,6 +1280,101 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                     colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
                 ) {
                     Text("+", fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+
+// ===== Dhikr detail screens =====
+
+private data class DhikrItem(
+    val title: String,
+    val arabic: String,
+    val transliteration: String,
+    val translation: String
+)
+
+private val MorningDhikr = listOf(
+    DhikrItem(
+        "Ayat al-Kursi",
+        "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
+        "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
+        "Аллах — нет божества кроме Него, Живого и Вечно Сущего"
+    ),
+    DhikrItem(
+        "Subhanallahi wa bihamdihi ×100",
+        "",
+        "Subhanallahi wa bihamdihi",
+        "Пречист Аллах и Ему хвала"
+    )
+)
+
+@Composable
+private fun DhikrDetailScreen(
+    title: String,
+    items: List<DhikrItem>
+) {
+    var completed by remember { mutableStateOf(setOf<Int>()) }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                title,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = DeepGreen
+            )
+        }
+
+        items(items.size) { index ->
+            val item = items[index]
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        item.title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepGreen
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    if (item.arabic.isNotBlank()) {
+                        Text(item.arabic, fontSize = 22.sp, color = Gold)
+                    }
+
+                    Text(item.transliteration, color = Green)
+                    Text(item.translation, color = Color.Gray)
+
+                    Button(
+                        onClick = {
+                            completed =
+                                if (index in completed)
+                                    completed - index
+                                else
+                                    completed + index
+                        }
+                    ) {
+                        Text(
+                            if (index in completed)
+                                "✓ Прочитано"
+                            else
+                                "○ Отметить"
+                        )
+                    }
                 }
             }
         }
