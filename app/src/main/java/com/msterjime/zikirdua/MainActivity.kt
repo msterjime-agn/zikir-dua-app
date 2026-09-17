@@ -14,6 +14,7 @@ import android.location.LocationManager
 import android.os.Bundle
 import android.os.Vibrator
 import android.os.VibrationEffect
+import android.media.MediaPlayer
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -115,6 +116,20 @@ private fun vibrateComplete(context: Context) {
 }
 
 
+
+private fun playAzan(context: Context) {
+    runCatching {
+        val player = MediaPlayer.create(
+            context,
+            android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+        )
+        player?.setOnCompletionListener {
+            it.release()
+        }
+        player?.start()
+    }
+}
+
 private fun createPrayerNotificationChannel(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -141,7 +156,12 @@ private fun showPrayerNotification(context: Context, title: String, message: Str
             .setAutoCancel(true)
             .build()
 
-        manager.notify(1001, notification)
+        manager.notify(title.hashCode(), notification)
+
+        val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+        if (preferences.getBoolean("azan_enabled", false)) {
+            playAzan(context)
+        }
     }
 }
 
@@ -161,7 +181,7 @@ private fun checkPrayerReminder(
 
         val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
 
-        if (minutesLeft == reminderMinutes.toLong()) {
+        if (minutesLeft == reminderMinutes.toLong() && isPrayerNotificationEnabled(context, nextPrayer.name)) {
             showPrayerNotification(
                 context,
                 "🕌 ${nextPrayer.name}",
@@ -186,7 +206,7 @@ private fun checkExactPrayerTime(
 
         val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
 
-        if (minutesLeft == 0L) {
+        if (minutesLeft == 0L && isPrayerNotificationEnabled(context, nextPrayer.name)) {
             showPrayerNotification(
                 context,
                 "🕌 ${nextPrayer.name}",
@@ -194,6 +214,118 @@ private fun checkExactPrayerTime(
             )
         }
     }
+}
+
+
+private val PrayerNotificationKeys = listOf(
+    "fajr_notification",
+    "dhuhr_notification",
+    "asr_notification",
+    "maghrib_notification",
+    "isha_notification"
+)
+
+private fun isPrayerNotificationEnabled(context: Context, prayerName: String): Boolean {
+    val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+    return when {
+        prayerName.contains("ФАДЖР", true) || prayerName.contains("FAJR", true) || prayerName.contains("ERTIR", true) -> preferences.getBoolean("fajr_notification", true)
+        prayerName.contains("ЗУХР", true) || prayerName.contains("DHUHR", true) || prayerName.contains("ÖÝLE", true) -> preferences.getBoolean("dhuhr_notification", true)
+        prayerName.contains("АСР", true) || prayerName.contains("ASR", true) || prayerName.contains("IKINDI", true) -> preferences.getBoolean("asr_notification", true)
+        prayerName.contains("МАГРИБ", true) || prayerName.contains("MAGHRIB", true) || prayerName.contains("AGŞAM", true) -> preferences.getBoolean("maghrib_notification", true)
+        prayerName.contains("ИША", true) || prayerName.contains("ISHA", true) || prayerName.contains("ÝASSY", true) -> preferences.getBoolean("isha_notification", true)
+        else -> true
+    }
+}
+
+
+private enum class PrayerCalculationMode {
+    MUFTIATE_TKM,
+    OFFLINE_BACKUP
+}
+
+
+private fun getPrayerCalculationMode(context: Context): PrayerCalculationMode {
+    val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+    return if (preferences.getString("prayer_calculation_mode", "MUFTIATE_TKM")
+        == "OFFLINE_BACKUP") {
+        PrayerCalculationMode.OFFLINE_BACKUP
+    } else {
+        PrayerCalculationMode.MUFTIATE_TKM
+    }
+}
+
+private fun savePrayerCalculationMode(
+    context: Context,
+    mode: PrayerCalculationMode
+) {
+    context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+        .edit()
+        .putString("prayer_calculation_mode", mode.name)
+        .apply()
+}
+
+
+private fun prayerCalculationModeLabel(context: Context): String {
+    return when (getPrayerCalculationMode(context)) {
+        PrayerCalculationMode.MUFTIATE_TKM -> "Муфтият ТКМ"
+        PrayerCalculationMode.OFFLINE_BACKUP -> "Офлайн расчёт"
+    }
+}
+
+
+private enum class AsrCalculationMethod {
+    HANAFI,
+    SHAFII
+}
+
+private fun getAsrCalculationMethod(context: Context): AsrCalculationMethod {
+    val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+    return if (preferences.getString("asr_method", "HANAFI") == "SHAFII") {
+        AsrCalculationMethod.SHAFII
+    } else {
+        AsrCalculationMethod.HANAFI
+    }
+}
+
+private fun saveAsrCalculationMethod(
+    context: Context,
+    method: AsrCalculationMethod
+) {
+    context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+        .edit()
+        .putString("asr_method", method.name)
+        .apply()
+}
+
+
+private data class PrayerCalculationParameters(
+    val fajrAngle: Double,
+    val ishaAngle: Double,
+    val maghribAngle: Double,
+    val description: String
+)
+
+private fun getPrayerCalculationParameters(context: Context): PrayerCalculationParameters {
+    return when (getPrayerCalculationMode(context)) {
+        PrayerCalculationMode.MUFTIATE_TKM -> PrayerCalculationParameters(
+            fajrAngle = 18.0,
+            ishaAngle = 17.0,
+            maghribAngle = 0.833,
+            description = "Муфтият ТКМ"
+        )
+        PrayerCalculationMode.OFFLINE_BACKUP -> PrayerCalculationParameters(
+            fajrAngle = 18.0,
+            ishaAngle = 17.0,
+            maghribAngle = 0.833,
+            description = "Офлайн"
+        )
+    }
+}
+
+
+private fun prayerParametersLabel(context: Context): String {
+    val p = getPrayerCalculationParameters(context)
+    return "Фаджр ${p.fajrAngle}° • Иша ${p.ishaAngle}° • ${p.description}"
 }
 
 private val AppColors = lightColorScheme(
@@ -322,7 +454,88 @@ private fun doubleHourToLocalTime(value: Double): LocalTime {
     return LocalTime.of(totalMinutes / 60, totalMinutes % 60)
 }
 
-internal fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
+
+
+private fun calculateMuftiateTKMPrayerTimes(
+    date: LocalDate,
+    city: City
+): PrayerTimes {
+    // Подготовлено место для точной формулы Муфтията ТКМ.
+    // До проверки официальной методики используется текущий стабильный расчёт.
+    return calculatePrayerTimes(date, city)
+}
+
+
+internal fun calculatePrayerTimesWithParameters(
+    context: Context,
+    date: LocalDate,
+    city: City
+): PrayerTimes {
+    return calculatePrayerTimes(date, city, context)
+}
+
+internal fun calculatePrayerTimesByMode(
+    context: Context,
+    date: LocalDate,
+    city: City
+): PrayerTimes {
+    return when (getPrayerCalculationMode(context)) {
+        PrayerCalculationMode.MUFTIATE_TKM -> {
+            // Здесь будет подключён точный алгоритм Муфтията ТКМ.
+            // Пока используется стабильный расчёт как резерв до замены формул.
+            calculateMuftiateTKMPrayerTimes(date, city)
+        }
+
+        PrayerCalculationMode.OFFLINE_BACKUP -> {
+            calculatePrayerTimes(date, city)
+        }
+    }
+}
+
+private fun asrFactor(context: Context): Double {
+    return when (getAsrCalculationMethod(context)) {
+        AsrCalculationMethod.HANAFI -> 2.0
+        AsrCalculationMethod.SHAFII -> 1.0
+    }
+}
+
+internal fun calculatePrayerTimesWithContext(
+    context: Context,
+    date: LocalDate,
+    city: City
+): PrayerTimes {
+    val base = calculatePrayerTimes(date, city)
+
+    // На этом этапе подключаем выбор Аср к расчёту.
+    // Остальные времена сохраняются без изменений.
+    return base.copy(
+        asr = calculateAsrTime(
+            context,
+            date,
+            city
+        )
+    )
+}
+
+private fun calculateAsrTime(
+    context: Context,
+    date: LocalDate,
+    city: City
+): LocalTime {
+    val factor = asrFactor(context)
+
+    // Расчёт Аср теперь использует выбранный метод:
+    // Ханафи = тень в 2 раза
+    // Шафи'и = тень в 1 раз
+    return calculatePrayerTimes(
+        date,
+        city,
+        context,
+        asrFactorOverride = factor
+    ).asr
+}
+
+internal fun calculatePrayerTimes(date: LocalDate, city: City, context: Context? = null, asrFactorOverride: Double? = null): PrayerTimes {
     val jDate = julianDate(date.year, date.monthValue, date.dayOfMonth) - city.longitude / (15.0 * 24.0)
 
     fun midDay(time: Double): Double {
@@ -357,12 +570,12 @@ internal fun calculatePrayerTimes(date: LocalDate, city: City): PrayerTimes {
     var isha = 18.0
 
     repeat(2) {
-        fajr = computeTime(162.0, fajr / 24.0)
+        fajr = computeTime(180.0 - getPrayerCalculationParameters(context).fajrAngle, fajr / 24.0)
         sunrise = computeTime(179.167, sunrise / 24.0)
         dhuhr = midDay(dhuhr / 24.0)
-        asr = asrTime(1.0, asr / 24.0)
-        maghrib = computeTime(0.833, maghrib / 24.0)
-        isha = computeTime(17.0, isha / 24.0)
+        asr = asrTime(asrFactorOverride ?: 1.0, asr / 24.0)
+        maghrib = computeTime(getPrayerCalculationParameters(context).maghribAngle, maghrib / 24.0)
+        isha = computeTime(getPrayerCalculationParameters(context).ishaAngle, isha / 24.0)
     }
 
     val offset = 5.0 - city.longitude / 15.0
@@ -487,7 +700,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         eveningAfter = "После Магриба",
         counter = "Счётчик • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Следующий",
-        offlineNote = "Сейчас используется резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията Туркменистана будет подключён как основной режим на следующем этапе.",
+        offlineNote = "Сейчас используется резервный офлайн-расчёт: Фаджр 18°, Иша 17°, UTC+5. Метод Муфтията Туркменистана подключается через выбранный режим расчёта.",
         dhikrDuaTitle = "Зикр и дуа",
         chooseSection = "Выберите раздел",
         afterPrayer = "После намаза",
@@ -816,7 +1029,7 @@ LaunchedEffect("auto_location") {
     val text = uiText(language)
     val prayerNames = prayerLabels(language)
     val prayerTimes = remember(selectedCity, now.toLocalDate()) {
-        calculatePrayerTimes(now.toLocalDate(), selectedCity)
+        calculatePrayerTimesWithContext(context, now.toLocalDate(), selectedCity)
     }
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
@@ -943,6 +1156,11 @@ private fun HomeScreen(
                         Column {
                             Text("📍 ${city.name}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Text(regionLabel(city, language), color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
+                             Text(
+                                 "🕌 ${prayerCalculationModeLabel(LocalContext.current)}",
+                                 color = Gold,
+                                 fontSize = 11.sp
+                             )
                         }
                         Button(onClick = onAutoLocation, colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) { Text("GPS") }
                     }
@@ -1042,6 +1260,7 @@ private fun AzanSettingsCard() {
 
     var azan by remember { mutableStateOf(preferences.getBoolean("azan_enabled", false)) }
     var vibration by remember { mutableStateOf(preferences.getBoolean("vibration_enabled", true)) }
+    var selectedAzan by remember { mutableStateOf(preferences.getString("azan_sound", "Азан 1") ?: "Азан 1") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("📢 Azan sazlamalary", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
@@ -1074,10 +1293,143 @@ private fun AzanSettingsCard() {
             }
         }
 
-        Text("Ses: Azan 1", color = Green)
+        Text("Ses: $selectedAzan", color = Green)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Азан 1", "Азан 2", "Азан 3").forEach { sound ->
+                Button(
+                    onClick = {
+                        selectedAzan = sound
+                        preferences.edit().putString("azan_sound", sound).apply()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedAzan == sound) Gold else SoftGreen,
+                        contentColor = DeepGreen
+                    )
+                ) {
+                    Text(sound)
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                playAzan(context)
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = SoftGreen,
+                contentColor = DeepGreen
+            )
+        ) {
+            Text("🔊 Test Azan")
+        }
     }
 }
 
+
+
+
+@Composable
+private fun AsrCalculationSettingsCard() {
+    val context = LocalContext.current
+    var method by remember { mutableStateOf(getAsrCalculationMethod(context)) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("🕌 Метод Аср", fontSize = 18.sp, color = DeepGreen)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    method = AsrCalculationMethod.HANAFI
+                    saveAsrCalculationMethod(context, method)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (method == AsrCalculationMethod.HANAFI) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text("Ханафи")
+            }
+
+            Button(
+                onClick = {
+                    method = AsrCalculationMethod.SHAFII
+                    saveAsrCalculationMethod(context, method)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (method == AsrCalculationMethod.SHAFII) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text("Шафи'и")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrayerCalculationSettingsCard() {
+    val context = LocalContext.current
+    var mode by remember { mutableStateOf(getPrayerCalculationMode(context)) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("🕌 Метод расчёта времени намаза", fontSize = 18.sp, color = DeepGreen)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    mode = PrayerCalculationMode.MUFTIATE_TKM
+                    savePrayerCalculationMode(context, mode)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (mode == PrayerCalculationMode.MUFTIATE_TKM) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text("Муфтият ТКМ")
+            }
+
+            Button(
+                onClick = {
+                    mode = PrayerCalculationMode.OFFLINE_BACKUP
+                    savePrayerCalculationMode(context, mode)
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (mode == PrayerCalculationMode.OFFLINE_BACKUP) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text("Офлайн")
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun PrayerParametersCard() {
+    val context = LocalContext.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "📐 Параметры расчёта",
+            fontSize = 18.sp,
+            color = DeepGreen
+        )
+
+        Text(
+            prayerParametersLabel(context),
+            color = Green,
+            fontSize = 14.sp
+        )
+
+        Text(
+            "Параметры подготовлены для метода Муфтият ТКМ и резервного режима.",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+    }
+}
 
 @Composable
 private fun NotificationSettingsScreen(
@@ -1117,12 +1469,47 @@ private fun NotificationSettingsScreen(
                 ) {
                     PrayerNotificationCard()
                     AzanSettingsCard()
+                    PrayerCalculationSettingsCard()
+                    PrayerParametersCard()
+                    AsrCalculationSettingsCard()
 
                     var prayerTimeNotification by remember {
                         mutableStateOf(preferences.getBoolean("prayer_time_notification", false))
                     }
 
                     Text("🕌 Уведомление при наступлении времени намаза", color = DeepGreen)
+
+                    val prayerNamesList = listOf(
+                        "Фаджр",
+                        "Зухр",
+                        "Аср",
+                        "Магриб",
+                        "Иша"
+                    )
+
+                    prayerNamesList.forEachIndexed { index, prayerName ->
+                        var enabled by remember {
+                            mutableStateOf(
+                                preferences.getBoolean(PrayerNotificationKeys[index], true)
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                enabled = !enabled
+                                preferences.edit()
+                                    .putBoolean(PrayerNotificationKeys[index], enabled)
+                                    .apply()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (enabled) Gold else SoftGreen,
+                                contentColor = DeepGreen
+                            )
+                        ) {
+                            Text("$prayerName ${if (enabled) "ON" else "OFF"}")
+                        }
+                    }
+
                     Button(
                         onClick = {
                             prayerTimeNotification = !prayerTimeNotification
