@@ -2,6 +2,11 @@ package com.msterjime.zikirdua
 
 import android.Manifest
 import android.content.Context
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Notification
+import androidx.core.app.NotificationCompat
+import android.os.Build
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
@@ -92,17 +97,103 @@ private val Ink = Color(0xFF1F2925)
 
 
 private fun vibrateShort(context: Context) {
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-    vibrator?.vibrate(
-        VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE)
-    )
+    runCatching {
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.vibrate(
+            VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE)
+        )
+    }
 }
 
 private fun vibrateComplete(context: Context) {
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-    vibrator?.vibrate(
-        VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE)
-    )
+    runCatching {
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.vibrate(
+            VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE)
+        )
+    }
+}
+
+
+private fun createPrayerNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            "prayer_time",
+            "Prayer time notifications",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        manager.createNotificationChannel(channel)
+    }
+}
+
+
+private fun showPrayerNotification(context: Context, title: String, message: String) {
+    runCatching {
+        createPrayerNotificationChannel(context)
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val notification = NotificationCompat.Builder(context, "prayer_time")
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(1001, notification)
+    }
+}
+
+
+private fun checkPrayerReminder(
+    context: Context,
+    nextPrayer: NextPrayer,
+    reminderMinutes: Int
+) {
+    runCatching {
+        val now = ZonedDateTime.now(TurkmenistanZone)
+        val prayerDateTime = ZonedDateTime.of(
+            nextPrayer.date,
+            nextPrayer.time,
+            TurkmenistanZone
+        )
+
+        val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
+
+        if (minutesLeft == reminderMinutes.toLong()) {
+            showPrayerNotification(
+                context,
+                "🕌 ${nextPrayer.name}",
+                "Через $reminderMinutes мин. наступает время намаза"
+            )
+        }
+    }
+}
+
+
+private fun checkExactPrayerTime(
+    context: Context,
+    nextPrayer: NextPrayer
+) {
+    runCatching {
+        val now = ZonedDateTime.now(TurkmenistanZone)
+        val prayerDateTime = ZonedDateTime.of(
+            nextPrayer.date,
+            nextPrayer.time,
+            TurkmenistanZone
+        )
+
+        val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
+
+        if (minutesLeft == 0L) {
+            showPrayerNotification(
+                context,
+                "🕌 ${nextPrayer.name}",
+                "Наступило время намаза"
+            )
+        }
+    }
 }
 
 private val AppColors = lightColorScheme(
@@ -725,7 +816,24 @@ LaunchedEffect("auto_location") {
     LaunchedEffect("clock") {
         while (true) {
             now = ZonedDateTime.now(TurkmenistanZone)
-            delay(1000)
+
+            val reminderMinutes = preferences.getInt("reminder_minutes", 10)
+            val notificationEnabled = preferences.getBoolean("prayer_time_notification", false)
+
+            if (notificationEnabled) {
+                checkPrayerReminder(
+                    context,
+                    nextPrayer,
+                    reminderMinutes
+                )
+
+                checkExactPrayerTime(
+                    context,
+                    nextPrayer
+                )
+            }
+
+            delay(60000)
         }
     }
 
