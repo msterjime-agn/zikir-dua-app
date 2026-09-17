@@ -962,8 +962,6 @@ private fun NotificationSettingsScreen(
 ) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
-    val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize()
