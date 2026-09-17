@@ -1282,9 +1282,9 @@ private fun DhikrScreen(text: UiText) {
                             saveDhikrCount(index, counts[index] ?: 0)
                             counts = counts.toMutableMap()
                             if (next >= item.countTarget) {
-                                vibrateComplete(LocalContext.current)
+                                vibrateComplete(context)
                             } else {
-                                vibrateShort(LocalContext.current)
+                                vibrateShort(context)
                             }
                         }) {
                             Text("$value / ${item.countTarget}  +1")
@@ -1496,9 +1496,9 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                 Button(
                     onClick = {
                         val next = count + 1
-                        vibrateShort(LocalContext.current)
+                        vibrateShort(context)
                         if (target > 0 && next >= target) {
-                            vibrateComplete(LocalContext.current)
+                            vibrateComplete(context)
                             saveCount(0)
                         } else {
                             saveCount(next)
