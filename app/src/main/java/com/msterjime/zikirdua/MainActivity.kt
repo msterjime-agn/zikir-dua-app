@@ -15,6 +15,10 @@ import android.os.Bundle
 import android.os.Vibrator
 import android.os.VibrationEffect
 import android.media.MediaPlayer
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -56,6 +60,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -66,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -75,6 +81,7 @@ import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -119,14 +126,38 @@ private fun vibrateComplete(context: Context) {
 
 private fun playAzan(context: Context) {
     runCatching {
-        val player = MediaPlayer.create(
-            context,
-            android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
-        )
-        player?.setOnCompletionListener {
-            it.release()
+        val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+        val selected = preferences.getString("azan_sound", "Azan 1") ?: "Azan 1"
+        val rawName = if (selected.contains("2")) "azan_2" else "azan_1"
+        val resId = context.resources.getIdentifier(rawName, "raw", context.packageName)
+
+        val player = if (resId != 0) {
+            MediaPlayer.create(context, resId)
+        } else {
+            MediaPlayer.create(
+                context,
+                android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
+            )
         }
+
+        player?.setOnCompletionListener { it.release() }
         player?.start()
+    }
+}
+
+private fun playTasbihClick(context: Context) {
+    runCatching {
+        val resId = context.resources.getIdentifier(
+            "tasbih_soft_click",
+            "raw",
+            context.packageName
+        )
+        if (resId != 0) {
+            val player = MediaPlayer.create(context, resId)
+            player?.setVolume(0.35f, 0.35f)
+            player?.setOnCompletionListener { it.release() }
+            player?.start()
+        }
     }
 }
 
@@ -836,7 +867,9 @@ enum class AppTab(val symbol: String) {
     HOME("⌂"),
     DHIKR("✦"),
     TASBIH("●"),
-    PRAYER("☾")
+    PRAYER("☾"),
+    CALENDAR("▣"),
+    QIBLA("◈")
 }
 
 private fun notificationSettingsTitle(language: AppLanguage): String = when (language) {
@@ -858,6 +891,18 @@ private fun tabTitle(tab: AppTab, text: UiText, language: AppLanguage): String =
     AppTab.PRAYER -> notificationSettingsTitle(language)
     AppTab.DHIKR -> text.dhikr
     AppTab.TASBIH -> text.tasbih
+    AppTab.CALENDAR -> when (language) {
+        AppLanguage.TM -> "Senenama"
+        AppLanguage.RU -> "Календарь"
+        AppLanguage.EN -> "Calendar"
+        AppLanguage.TR -> "Takvim"
+    }
+    AppTab.QIBLA -> when (language) {
+        AppLanguage.TM -> "Kybla"
+        AppLanguage.RU -> "Кибла"
+        AppLanguage.EN -> "Qibla"
+        AppLanguage.TR -> "Kıble"
+    }
 }
 
 private fun nearestCity(latitude: Double, longitude: Double): City {
@@ -1077,7 +1122,7 @@ LaunchedEffect("auto_location") {
         containerColor = Ivory,
         bottomBar = {
             NavigationBar(modifier = Modifier.navigationBarsPadding(), containerColor = Color.White) {
-                AppTab.entries.forEach { tab ->
+                listOf(AppTab.HOME, AppTab.DHIKR, AppTab.TASBIH, AppTab.PRAYER).forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
@@ -1107,7 +1152,9 @@ LaunchedEffect("auto_location") {
                     onAutoLocation = ::requestLocation,
                     onNotifications = { selectedTab = AppTab.PRAYER },
                     onDhikr = { selectedTab = AppTab.DHIKR },
-                    onTasbih = { selectedTab = AppTab.TASBIH }
+                    onTasbih = { selectedTab = AppTab.TASBIH },
+                    onCalendar = { selectedTab = AppTab.CALENDAR },
+                    onQibla = { selectedTab = AppTab.QIBLA }
                 )
                 AppTab.PRAYER -> NotificationSettingsScreen(
                     city = selectedCity,
@@ -1116,6 +1163,8 @@ LaunchedEffect("auto_location") {
                 )
                 AppTab.DHIKR -> DhikrScreen(text)
                 AppTab.TASBIH -> TasbihScreen(text, language)
+                AppTab.CALENDAR -> PrayerCalendarScreen(selectedCity, language)
+                AppTab.QIBLA -> QiblaCompassScreen(selectedCity, language)
             }
         }
     }
@@ -1133,7 +1182,9 @@ private fun HomeScreen(
     onAutoLocation: () -> Unit,
     onNotifications: () -> Unit,
     onDhikr: () -> Unit,
-    onTasbih: () -> Unit
+    onTasbih: () -> Unit,
+    onCalendar: () -> Unit,
+    onQibla: () -> Unit
 ) {
     var languageMenuOpen by remember { mutableStateOf(false) }
     val labels = prayerLabels(language)
@@ -1183,6 +1234,13 @@ private fun HomeScreen(
                             Text("${text.timeLeft}: $countdown", color=Color.White.copy(alpha=.75f), fontSize=13.sp)
                         }
                         Column(horizontalAlignment = Alignment.End) {
+                            val imsakLabel = when (language) {
+                                AppLanguage.TM -> "IMSAK"
+                                AppLanguage.RU -> "ИМСАК"
+                                AppLanguage.EN -> "IMSAK"
+                                AppLanguage.TR -> "İMSAK"
+                            }
+                            Text("$imsakLabel ${prayerTimes.fajr.minusMinutes(40).format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
                             Text("${labels.fajr} ${prayerTimes.fajr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
                             Text("${labels.dhuhr} ${prayerTimes.dhuhr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
                             Text("${labels.asr} ${prayerTimes.asr.format(TimeFormatter)}", color=Color.White, fontSize=11.sp)
@@ -1200,6 +1258,42 @@ private fun HomeScreen(
         }
         item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
         item { QuickAction("🔔", notificationSettingsTitle(language), notificationSettingsSubtitle(language), onNotifications) }
+        item {
+            QuickAction(
+                "▣",
+                when (language) {
+                    AppLanguage.TM -> "Namaz senenamasy"
+                    AppLanguage.RU -> "Календарь намаза"
+                    AppLanguage.EN -> "Prayer calendar"
+                    AppLanguage.TR -> "Namaz takvimi"
+                },
+                when (language) {
+                    AppLanguage.TM -> "Islendik günüň namaz wagtlary"
+                    AppLanguage.RU -> "Время намаза на любую дату"
+                    AppLanguage.EN -> "Prayer times for any date"
+                    AppLanguage.TR -> "İstediğiniz tarihin namaz vakitleri"
+                },
+                onCalendar
+            )
+        }
+        item {
+            QuickAction(
+                "◈",
+                when (language) {
+                    AppLanguage.TM -> "Kybla"
+                    AppLanguage.RU -> "Кибла"
+                    AppLanguage.EN -> "Qibla"
+                    AppLanguage.TR -> "Kıble"
+                },
+                when (language) {
+                    AppLanguage.TM -> "Kompas we ugur"
+                    AppLanguage.RU -> "Компас и направление"
+                    AppLanguage.EN -> "Compass and direction"
+                    AppLanguage.TR -> "Pusula ve yön"
+                },
+                onQibla
+            )
+        }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
     }
@@ -1306,7 +1400,7 @@ private fun AzanSettingsCard() {
         Text("Ses: $selectedAzan", color = Green)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Азан 1", "Азан 2", "Азан 3").forEach { sound ->
+            listOf("Azan 1", "Azan 2").forEach { sound ->
                 Button(
                     onClick = {
                         selectedAzan = sound
@@ -1437,6 +1531,320 @@ private fun PrayerParametersCard() {
             "Параметры подготовлены для метода Муфтият ТКМ и резервного режима.",
             color = Color.Gray,
             fontSize = 12.sp
+        )
+    }
+}
+
+
+private fun qiblaBearing(city: City): Double {
+    val kaabaLat = Math.toRadians(21.4225)
+    val kaabaLon = Math.toRadians(39.8262)
+    val lat = Math.toRadians(city.latitude)
+    val lon = Math.toRadians(city.longitude)
+    val deltaLon = kaabaLon - lon
+
+    val y = sin(deltaLon) * cos(kaabaLat)
+    val x = cos(lat) * sin(kaabaLat) -
+        sin(lat) * cos(kaabaLat) * cos(deltaLon)
+
+    return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
+}
+
+@Composable
+private fun PrayerCalendarScreen(
+    city: City,
+    language: AppLanguage
+) {
+    val context = LocalContext.current
+    var selectedDate by remember { mutableStateOf(LocalDate.now(TurkmenistanZone)) }
+    var shownMonth by remember { mutableStateOf(YearMonth.from(selectedDate)) }
+
+    val times = remember(selectedDate, city) {
+        calculatePrayerTimesWithContext(context, selectedDate, city)
+    }
+
+    val title = when (language) {
+        AppLanguage.TM -> "Namaz senenamasy"
+        AppLanguage.RU -> "Календарь намаза"
+        AppLanguage.EN -> "Prayer calendar"
+        AppLanguage.TR -> "Namaz takvimi"
+    }
+
+    val weekdays = when (language) {
+        AppLanguage.TM -> listOf("Du", "Si", "Çar", "Pe", "An", "Şe", "Ýe")
+        AppLanguage.RU -> listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+        AppLanguage.EN -> listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+        AppLanguage.TR -> listOf("Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pa")
+    }
+
+    val monthLabel = shownMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+    val firstOffset = shownMonth.atDay(1).dayOfWeek.value - 1
+    val daysInMonth = shownMonth.lengthOfMonth()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item { Spacer(Modifier.height(10.dp)) }
+        item {
+            Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+            Text("📍 ${city.name}", color = Green)
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                shownMonth = shownMonth.minusMonths(1)
+                                selectedDate = shownMonth.atDay(1)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                        ) { Text("‹") }
+
+                        Text(monthLabel, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+
+                        Button(
+                            onClick = {
+                                shownMonth = shownMonth.plusMonths(1)
+                                selectedDate = shownMonth.atDay(1)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                        ) { Text("›") }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(Modifier.fillMaxWidth()) {
+                        weekdays.forEach { day ->
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                Text(day, color = Color.Gray, fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(6.dp))
+
+                    repeat(6) { week ->
+                        Row(Modifier.fillMaxWidth()) {
+                            repeat(7) { column ->
+                                val cell = week * 7 + column
+                                val dayNumber = cell - firstOffset + 1
+
+                                Box(
+                                    Modifier
+                                        .weight(1f)
+                                        .height(42.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (dayNumber in 1..daysInMonth) {
+                                        val date = shownMonth.atDay(dayNumber)
+                                        val selected = date == selectedDate
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .background(
+                                                    if (selected) Gold else Color.Transparent,
+                                                    RoundedCornerShape(18.dp)
+                                                )
+                                                .clickable { selectedDate = date },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                dayNumber.toString(),
+                                                color = if (selected) DeepGreen else Ink,
+                                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = DeepGreen)
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text(
+                        selectedDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")),
+                        color = Gold,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    val rows = listOf(
+                        when (language) {
+                            AppLanguage.TM -> "Imsak"
+                            AppLanguage.RU -> "Имсак"
+                            AppLanguage.EN -> "Imsak"
+                            AppLanguage.TR -> "İmsak"
+                        } to times.fajr.minusMinutes(40),
+                        prayerLabels(language).fajr to times.fajr,
+                        prayerLabels(language).sunrise to times.sunrise,
+                        prayerLabels(language).dhuhr to times.dhuhr,
+                        prayerLabels(language).asr to times.asr,
+                        prayerLabels(language).maghrib to times.maghrib,
+                        prayerLabels(language).isha to times.isha
+                    )
+
+                    rows.forEach { (name, time) ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(name, color = Color.White)
+                            Text(time.format(TimeFormatter), color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(12.dp)) }
+    }
+}
+
+@Composable
+private fun QiblaCompassScreen(
+    city: City,
+    language: AppLanguage
+) {
+    val context = LocalContext.current
+    val sensorManager = remember {
+        context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    }
+    var heading by remember { mutableStateOf(0f) }
+    var sensorAvailable by remember { mutableStateOf(true) }
+
+    DisposableEffect(sensorManager) {
+        val rotationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        if (rotationSensor == null) {
+            sensorAvailable = false
+            onDispose { }
+        } else {
+            val listener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent) {
+                    val rotationMatrix = FloatArray(9)
+                    val orientation = FloatArray(3)
+                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                    SensorManager.getOrientation(rotationMatrix, orientation)
+                    val azimuth = Math.toDegrees(orientation[0].toDouble()).toFloat()
+                    heading = (azimuth + 360f) % 360f
+                }
+
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+            }
+
+            sensorManager.registerListener(
+                listener,
+                rotationSensor,
+                SensorManager.SENSOR_DELAY_UI
+            )
+            onDispose { sensorManager.unregisterListener(listener) }
+        }
+    }
+
+    val bearing = qiblaBearing(city)
+    val relativeAngle = (((bearing - heading + 540.0) % 360.0) - 180.0).toFloat()
+
+    val title = when (language) {
+        AppLanguage.TM -> "Kybla"
+        AppLanguage.RU -> "Кибла"
+        AppLanguage.EN -> "Qibla"
+        AppLanguage.TR -> "Kıble"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .padding(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text("📍 ${city.name}", color = Green)
+        Spacer(Modifier.height(28.dp))
+
+        Card(
+            modifier = Modifier.size(300.dp),
+            shape = RoundedCornerShape(150.dp),
+            colors = CardDefaults.cardColors(containerColor = SoftGreen)
+        ) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("N", Modifier.align(Alignment.TopCenter).padding(top = 18.dp), color = DeepGreen, fontWeight = FontWeight.Bold)
+                Text("E", Modifier.align(Alignment.CenterEnd).padding(end = 18.dp), color = DeepGreen, fontWeight = FontWeight.Bold)
+                Text("S", Modifier.align(Alignment.BottomCenter).padding(bottom = 18.dp), color = DeepGreen, fontWeight = FontWeight.Bold)
+                Text("W", Modifier.align(Alignment.CenterStart).padding(start = 18.dp), color = DeepGreen, fontWeight = FontWeight.Bold)
+
+                Text(
+                    "🕋",
+                    fontSize = 42.sp,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 58.dp)
+                )
+
+                Text(
+                    "↑",
+                    fontSize = 110.sp,
+                    color = Gold,
+                    modifier = Modifier.graphicsLayer(rotationZ = relativeAngle)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            when (language) {
+                AppLanguage.TM -> "Kybla ugry: ${bearing.roundToInt()}°"
+                AppLanguage.RU -> "Направление Киблы: ${bearing.roundToInt()}°"
+                AppLanguage.EN -> "Qibla direction: ${bearing.roundToInt()}°"
+                AppLanguage.TR -> "Kıble yönü: ${bearing.roundToInt()}°"
+            },
+            color = DeepGreen,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            when {
+                !sensorAvailable -> when (language) {
+                    AppLanguage.TM -> "Bu telefonda kompas datçigi tapylmady"
+                    AppLanguage.RU -> "На этом телефоне не найден датчик компаса"
+                    AppLanguage.EN -> "Compass sensor is not available on this phone"
+                    AppLanguage.TR -> "Bu telefonda pusula sensörü bulunamadı"
+                }
+                kotlin.math.abs(relativeAngle) < 6f -> when (language) {
+                    AppLanguage.TM -> "Kybla tarapa gönükdiňiz"
+                    AppLanguage.RU -> "Вы направлены на Киблу"
+                    AppLanguage.EN -> "You are facing the Qibla"
+                    AppLanguage.TR -> "Kıble yönündesiniz"
+                }
+                else -> when (language) {
+                    AppLanguage.TM -> "Telefony öwrüp, altyn oky ýokary getiriň"
+                    AppLanguage.RU -> "Поворачивайте телефон, пока золотая стрелка не укажет вверх"
+                    AppLanguage.EN -> "Turn the phone until the gold arrow points up"
+                    AppLanguage.TR -> "Altın ok yukarıyı gösterene kadar telefonu çevirin"
+                }
+            },
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp)
         )
     }
 }
@@ -2001,6 +2409,7 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                 Button(
                     onClick = {
                         val next = count + 1
+                        playTasbihClick(context)
                         vibrateShort(context)
                         if (target > 0 && next >= target) {
                             vibrateComplete(context)
