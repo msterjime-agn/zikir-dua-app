@@ -96,6 +96,19 @@ private val Gold = Color(0xFFC8A95B)
 private val Ivory = Color(0xFFF8F6EF)
 private val Ink = Color(0xFF1F2925)
 
+private fun localized(
+    language: AppLanguage,
+    tm: String,
+    ru: String,
+    en: String,
+    tr: String
+): String = when (language) {
+    AppLanguage.TM -> tm
+    AppLanguage.RU -> ru
+    AppLanguage.EN -> en
+    AppLanguage.TR -> tr
+}
+
 
 private fun vibrateShort(context: Context) {
     runCatching {
@@ -118,14 +131,14 @@ private fun vibrateComplete(context: Context) {
 
 
 private fun playAzan(context: Context) {
+    runCatching { startAzanPlayback(context) }
+}
+
+private fun playTasbihClick(context: Context) {
     runCatching {
-        val player = MediaPlayer.create(
-            context,
-            android.provider.Settings.System.DEFAULT_NOTIFICATION_URI
-        )
-        player?.setOnCompletionListener {
-            it.release()
-        }
+        val player = MediaPlayer.create(context, R.raw.tasbih_soft_click)
+        player?.setVolume(0.45f, 0.45f)
+        player?.setOnCompletionListener { it.release() }
         player?.start()
     }
 }
@@ -1044,27 +1057,19 @@ LaunchedEffect("auto_location") {
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
 
+    LaunchedEffect(selectedCity.name, language.code, now.toLocalDate()) {
+        reschedulePrayerEvents(
+            context = context,
+            city = selectedCity,
+            labels = prayerNames,
+            languageCode = language.code
+        )
+    }
+
     LaunchedEffect("clock") {
         while (true) {
             now = ZonedDateTime.now(TurkmenistanZone)
-
-            val reminderMinutes = preferences.getInt("reminder_minutes", 10)
-            val notificationEnabled = preferences.getBoolean("prayer_time_notification", false)
-
-            if (notificationEnabled) {
-                checkPrayerReminder(
-                    context,
-                    nextPrayer,
-                    reminderMinutes
-                )
-
-                checkExactPrayerTime(
-                    context,
-                    nextPrayer
-                )
-            }
-
-            delay(60000)
+            delay(1000)
         }
     }
 
@@ -1114,7 +1119,7 @@ LaunchedEffect("auto_location") {
                     labels = prayerNames,
                     language = language
                 )
-                AppTab.DHIKR -> DhikrScreen(text)
+                AppTab.DHIKR -> DhikrScreen(text, language)
                 AppTab.TASBIH -> TasbihScreen(text, language)
             }
         }
@@ -1199,9 +1204,9 @@ private fun HomeScreen(
             }
         }
         item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
-        item { QuickAction("🔔", notificationSettingsTitle(language), notificationSettingsSubtitle(language), onNotifications) }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
+        item { QuickAction("🔔", notificationSettingsTitle(language), notificationSettingsSubtitle(language), onNotifications) }
     }
 }
 
@@ -1229,7 +1234,10 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 
 
 @Composable
-private fun PrayerNotificationCard() {
+private fun PrayerNotificationCard(
+    language: AppLanguage,
+    onSettingsChanged: () -> Unit
+) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
 
@@ -1238,8 +1246,22 @@ private fun PrayerNotificationCard() {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("🔔 Bildirişler", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-        Text("Öňünden duýdurmak", color = Green)
+        Text(
+            localized(language, "🔔 Bildirişler", "🔔 Уведомления", "🔔 Notifications", "🔔 Bildirimler"),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = DeepGreen
+        )
+        Text(
+            localized(
+                language,
+                "Öňünden duýdurmak",
+                "Напомнить заранее",
+                "Remind before prayer",
+                "Önceden hatırlat"
+            ),
+            color = Green
+        )
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1250,13 +1272,14 @@ private fun PrayerNotificationCard() {
                     onClick = {
                         selectedMinutes = minute
                         preferences.edit().putInt("reminder_minutes", minute).apply()
+                        onSettingsChanged()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (selectedMinutes == minute) Gold else SoftGreen,
                         contentColor = DeepGreen
                     )
                 ) {
-                    Text("$minute min")
+                    Text(minute.toString() + " min")
                 }
             }
         }
@@ -1264,22 +1287,37 @@ private fun PrayerNotificationCard() {
 }
 
 @Composable
-private fun AzanSettingsCard() {
+private fun AzanSettingsCard(
+    language: AppLanguage,
+    onSettingsChanged: () -> Unit
+) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
 
     var azan by remember { mutableStateOf(preferences.getBoolean("azan_enabled", false)) }
     var vibration by remember { mutableStateOf(preferences.getBoolean("vibration_enabled", true)) }
-    var selectedAzan by remember { mutableStateOf(preferences.getString("azan_sound", "Азан 1") ?: "Азан 1") }
+    var selectedAzan by remember {
+        mutableStateOf(
+            preferences.getString("azan_sound", "Azan 1")
+                ?.replace("Азан", "Azan")
+                ?: "Azan 1"
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("📢 Azan sazlamalary", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text(
+            localized(language, "📢 Azan sazlamalary", "📢 Настройки азана", "📢 Adhan settings", "📢 Ezan ayarları"),
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = DeepGreen
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
                     azan = !azan
                     preferences.edit().putBoolean("azan_enabled", azan).apply()
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (azan) Gold else SoftGreen,
@@ -1293,20 +1331,29 @@ private fun AzanSettingsCard() {
                 onClick = {
                     vibration = !vibration
                     preferences.edit().putBoolean("vibration_enabled", vibration).apply()
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (vibration) Gold else SoftGreen,
                     contentColor = DeepGreen
                 )
             ) {
-                Text(if (vibration) "Wibrasiýa ON" else "Wibrasiýa OFF")
+                Text(
+                    if (vibration)
+                        localized(language, "Wibrasiýa ON", "Вибрация ON", "Vibration ON", "Titreşim ON")
+                    else
+                        localized(language, "Wibrasiýa OFF", "Вибрация OFF", "Vibration OFF", "Titreşim OFF")
+                )
             }
         }
 
-        Text("Ses: $selectedAzan", color = Green)
+        Text(
+            localized(language, "Ses: ", "Звук: ", "Sound: ", "Ses: ") + selectedAzan,
+            color = Green
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Азан 1", "Азан 2", "Азан 3").forEach { sound ->
+            listOf("Azan 1", "Azan 2").forEach { sound ->
                 Button(
                     onClick = {
                         selectedAzan = sound
@@ -1323,106 +1370,132 @@ private fun AzanSettingsCard() {
         }
 
         Button(
-            onClick = {
-                playAzan(context)
-            },
+            onClick = { playAzan(context) },
             colors = ButtonDefaults.buttonColors(
                 containerColor = SoftGreen,
                 contentColor = DeepGreen
             )
         ) {
-            Text("🔊 Test Azan")
+            Text(
+                localized(language, "🔊 Azany barla", "🔊 Тест азана", "🔊 Test adhan", "🔊 Ezanı test et")
+            )
         }
     }
 }
 
-
-
-
 @Composable
-private fun AsrCalculationSettingsCard() {
+private fun AsrCalculationSettingsCard(
+    language: AppLanguage,
+    onSettingsChanged: () -> Unit
+) {
     val context = LocalContext.current
     var method by remember { mutableStateOf(getAsrCalculationMethod(context)) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("🕌 Метод Аср", fontSize = 18.sp, color = DeepGreen)
+        Text(
+            localized(language, "🕌 Asr hasaplama usuly", "🕌 Метод Аср", "🕌 Asr method", "🕌 İkindi yöntemi"),
+            fontSize = 18.sp,
+            color = DeepGreen
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
                     method = AsrCalculationMethod.HANAFI
                     saveAsrCalculationMethod(context, method)
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (method == AsrCalculationMethod.HANAFI) Gold else SoftGreen,
                     contentColor = DeepGreen
                 )
             ) {
-                Text("Ханафи")
+                Text(localized(language, "Hanafi", "Ханафи", "Hanafi", "Hanefi"))
             }
 
             Button(
                 onClick = {
                     method = AsrCalculationMethod.SHAFII
                     saveAsrCalculationMethod(context, method)
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (method == AsrCalculationMethod.SHAFII) Gold else SoftGreen,
                     contentColor = DeepGreen
                 )
             ) {
-                Text("Шафи'и")
+                Text(localized(language, "Şafygy", "Шафи'и", "Shafi'i", "Şafii"))
             }
         }
     }
 }
 
 @Composable
-private fun PrayerCalculationSettingsCard() {
+private fun PrayerCalculationSettingsCard(
+    language: AppLanguage,
+    onSettingsChanged: () -> Unit
+) {
     val context = LocalContext.current
     var mode by remember { mutableStateOf(getPrayerCalculationMode(context)) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("🕌 Метод расчёта времени намаза", fontSize = 18.sp, color = DeepGreen)
+        Text(
+            localized(
+                language,
+                "🕌 Namaz wagtyny hasaplama usuly",
+                "🕌 Метод расчёта времени намаза",
+                "🕌 Prayer time method",
+                "🕌 Namaz vakti yöntemi"
+            ),
+            fontSize = 18.sp,
+            color = DeepGreen
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
                     mode = PrayerCalculationMode.MUFTIATE_TKM
                     savePrayerCalculationMode(context, mode)
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (mode == PrayerCalculationMode.MUFTIATE_TKM) Gold else SoftGreen,
                     contentColor = DeepGreen
                 )
             ) {
-                Text("Муфтият ТКМ")
+                Text(localized(language, "Müftülik TKM", "Муфтият ТКМ", "Muftiate TKM", "Müftülük TKM"))
             }
 
             Button(
                 onClick = {
                     mode = PrayerCalculationMode.OFFLINE_BACKUP
                     savePrayerCalculationMode(context, mode)
+                    onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (mode == PrayerCalculationMode.OFFLINE_BACKUP) Gold else SoftGreen,
                     contentColor = DeepGreen
                 )
             ) {
-                Text("Офлайн")
+                Text(localized(language, "Oflaýn", "Офлайн", "Offline", "Çevrimdışı"))
             }
         }
     }
 }
 
-
 @Composable
-private fun PrayerParametersCard() {
+private fun PrayerParametersCard(language: AppLanguage) {
     val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            "📐 Параметры расчёта",
+            localized(
+                language,
+                "📐 Hasaplama parametrleri",
+                "📐 Параметры расчёта",
+                "📐 Calculation parameters",
+                "📐 Hesaplama parametreleri"
+            ),
             fontSize = 18.sp,
             color = DeepGreen
         )
@@ -1434,7 +1507,13 @@ private fun PrayerParametersCard() {
         )
 
         Text(
-            "Параметры подготовлены для метода Муфтият ТКМ и резервного режима.",
+            localized(
+                language,
+                "Müftüligiň takyk maglumat bazasy birikdirilýänçä bu parametrler ätiýaçlyk hasaplama üçindir.",
+                "Эти параметры используются только как резервный расчёт до подключения точной базы Муфтията.",
+                "These parameters are only a backup until the exact Muftiate database is connected.",
+                "Kesin Müftülük veritabanı bağlanana kadar bu parametreler yalnızca yedek hesaplama içindir."
+            ),
             color = Color.Gray,
             fontSize = 12.sp
         )
@@ -1477,24 +1556,42 @@ private fun NotificationSettingsScreen(
                     Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    PrayerNotificationCard()
-                    AzanSettingsCard()
-                    PrayerCalculationSettingsCard()
-                    PrayerParametersCard()
-                    AsrCalculationSettingsCard()
+                    val refreshSchedules = {
+                        reschedulePrayerEvents(
+                            context = context,
+                            city = city,
+                            labels = labels,
+                            languageCode = language.code
+                        )
+                    }
+
+                    PrayerNotificationCard(language, refreshSchedules)
+                    AzanSettingsCard(language, refreshSchedules)
+                    PrayerCalculationSettingsCard(language, refreshSchedules)
+                    PrayerParametersCard(language)
+                    AsrCalculationSettingsCard(language, refreshSchedules)
 
                     var prayerTimeNotification by remember {
                         mutableStateOf(preferences.getBoolean("prayer_time_notification", false))
                     }
 
-                    Text("🕌 Уведомление при наступлении времени намаза", color = DeepGreen)
+                    Text(
+                        localized(
+                            language,
+                            "🕌 Namaz wagtyndaky bildiriş",
+                            "🕌 Уведомление при наступлении времени намаза",
+                            "🕌 Notification at prayer time",
+                            "🕌 Namaz vaktinde bildirim"
+                        ),
+                        color = DeepGreen
+                    )
 
                     val prayerNamesList = listOf(
-                        "Фаджр",
-                        "Зухр",
-                        "Аср",
-                        "Магриб",
-                        "Иша"
+                        labels.fajr,
+                        labels.dhuhr,
+                        labels.asr,
+                        labels.maghrib,
+                        labels.isha
                     )
 
                     prayerNamesList.forEachIndexed { index, prayerName ->
@@ -1510,6 +1607,7 @@ private fun NotificationSettingsScreen(
                                 preferences.edit()
                                     .putBoolean(PrayerNotificationKeys[index], enabled)
                                     .apply()
+                                refreshSchedules()
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (enabled) Gold else SoftGreen,
@@ -1526,6 +1624,7 @@ private fun NotificationSettingsScreen(
                             preferences.edit()
                                 .putBoolean("prayer_time_notification", prayerTimeNotification)
                                 .apply()
+                            refreshSchedules()
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (prayerTimeNotification) Gold else SoftGreen,
@@ -2001,6 +2100,7 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                 Button(
                     onClick = {
                         val next = count + 1
+                        playTasbihClick(context)
                         vibrateShort(context)
                         if (target > 0 && next >= target) {
                             vibrateComplete(context)
