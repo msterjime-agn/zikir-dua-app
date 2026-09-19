@@ -10,38 +10,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
@@ -49,202 +22,108 @@ private const val ReminderChannelId = "prayer_reminders"
 private const val ReminderSchedulePrefs = "prayer_reminder_schedule"
 private const val ReminderCodesKey = "request_codes"
 private const val AppPrefs = "zikir_dua_settings"
-private const val ReminderMinutesKey = "prayer_reminder_minutes"
 private val ReminderZone = ZoneOffset.ofHours(5)
 
-private val ReminderGreen = Color(0xFF2F6B57)
-private val ReminderDeepGreen = Color(0xFF173F35)
-private val ReminderSoftGreen = Color(0xFFEAF2EE)
-private val ReminderGold = Color(0xFFC8A95B)
-
-private data class ReminderStrings(
-    val title: String,
-    val subtitle: String,
-    val off: String,
-    val atTime: String,
-    val notificationTitle: String
+private val NotificationKeys = listOf(
+    "fajr_notification",
+    "dhuhr_notification",
+    "asr_notification",
+    "maghrib_notification",
+    "isha_notification"
 )
 
-private fun reminderStrings(languageCode: String): ReminderStrings = when (languageCode) {
-    "ru" -> ReminderStrings(
-        "🔔 Напоминание о намазе",
-        "Когда напомнить перед намазом",
-        "Выкл.",
-        "В момент",
-        "Время намаза"
+private data class ReceiverStrings(
+    val prayerTime: String,
+    val minutesLeft: (Int) -> String
+)
+
+private fun receiverStrings(languageCode: String): ReceiverStrings = when (languageCode) {
+    "ru" -> ReceiverStrings(
+        prayerTime = "Время намаза",
+        minutesLeft = { minutes -> "До намаза осталось " + minutes + " мин." }
     )
-    "en" -> ReminderStrings(
-        "🔔 Prayer reminder",
-        "Choose when to remind before prayer",
-        "Off",
-        "At time",
-        "Prayer time"
+    "en" -> ReceiverStrings(
+        prayerTime = "Prayer time",
+        minutesLeft = { minutes -> minutes.toString() + " min until prayer" }
     )
-    "tr" -> ReminderStrings(
-        "🔔 Namaz hatırlatıcısı",
-        "Namazdan önce hatırlatma süresini seçin",
-        "Kapalı",
-        "Vaktinde",
-        "Namaz vakti"
+    "tr" -> ReceiverStrings(
+        prayerTime = "Namaz vakti",
+        minutesLeft = { minutes -> "Namaza " + minutes + " dk kaldı" }
     )
-    else -> ReminderStrings(
-        "🔔 Namaz ýatlatmasy",
-        "Namazdan öň duýduryş wagtyny saýlaň",
-        "Öçük",
-        "Wagtynda",
-        "Namaz wagty"
+    else -> ReceiverStrings(
+        prayerTime = "Namaz wagty",
+        minutesLeft = { minutes -> "Namaza " + minutes + " minut galdy" }
     )
 }
 
-@Composable
-internal fun PrayerReminderCard(
+internal fun reschedulePrayerEvents(
+    context: Context,
     city: City,
     labels: PrayerLabels,
     languageCode: String
 ) {
-    val context = LocalContext.current
-    val preferences = remember { context.getSharedPreferences(AppPrefs, Context.MODE_PRIVATE) }
-    var minutesBefore by remember {
-        mutableIntStateOf(preferences.getInt(ReminderMinutesKey, -1))
-    }
-    val strings = reminderStrings(languageCode)
-    val today = LocalDate.now(ReminderZone)
+    cancelPrayerEvents(context)
 
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { }
+    val preferences = context.getSharedPreferences(AppPrefs, Context.MODE_PRIVATE)
+    val notificationEnabled = preferences.getBoolean("prayer_time_notification", false)
+    val azanEnabled = preferences.getBoolean("azan_enabled", false)
+    val reminderMinutes = preferences.getInt("reminder_minutes", 10)
 
-    fun selectReminder(value: Int) {
-        minutesBefore = value
-        preferences.edit().putInt(ReminderMinutesKey, value).apply()
-        if (
-            value >= 0 &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    LaunchedEffect(city.name, languageCode, minutesBefore, today) {
-        if (minutesBefore < 0) {
-            cancelPrayerReminders(context)
-        } else {
-            schedulePrayerReminders(
-                context = context,
-                city = city,
-                labels = labels,
-                languageCode = languageCode,
-                minutesBefore = minutesBefore,
-                startDate = today
-            )
-        }
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(
-                strings.title,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ReminderDeepGreen
-            )
-            Text(strings.subtitle, fontSize = 12.sp, color = Color.Gray)
-            Spacer(Modifier.height(10.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                items(listOf(-1, 0, 5, 10, 15, 30)) { option ->
-                    val label = when {
-                        option < 0 -> strings.off
-                        option == 0 -> strings.atTime
-                        else -> "$option min"
-                    }
-                    Button(
-                        onClick = { selectReminder(option) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (minutesBefore == option) ReminderGold else ReminderSoftGreen,
-                            contentColor = ReminderDeepGreen
-                        )
-                    ) {
-                        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun buildReminderDays(
-    city: City,
-    labels: PrayerLabels,
-    startDate: LocalDate,
-    dayCount: Int = 14
-): List<Pair<LocalDate, List<Pair<String, LocalTime>>>> = (0 until dayCount).map { offset ->
-    val date = startDate.plusDays(offset.toLong())
-    val times = calculatePrayerTimes(date, city)
-    date to listOf(
-        labels.fajr to times.fajr,
-        labels.dhuhr to times.dhuhr,
-        labels.asr to times.asr,
-        labels.maghrib to times.maghrib,
-        labels.isha to times.isha
-    )
-}
-
-private fun schedulePrayerReminders(
-    context: Context,
-    city: City,
-    labels: PrayerLabels,
-    languageCode: String,
-    minutesBefore: Int,
-    startDate: LocalDate
-) {
-    cancelPrayerReminders(context)
-    if (minutesBefore < 0) return
+    if (!notificationEnabled && !azanEnabled) return
 
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val now = ZonedDateTime.now(ReminderZone)
     val requestCodes = mutableListOf<Int>()
 
-    buildReminderDays(city, labels, startDate).forEach { (date, prayers) ->
+    repeat(14) { dayOffset ->
+        val date = LocalDate.now(ReminderZone).plusDays(dayOffset.toLong())
+        val times = calculatePrayerTimesWithContext(context, date, city)
+        val prayers = listOf(
+            labels.fajr to times.fajr,
+            labels.dhuhr to times.dhuhr,
+            labels.asr to times.asr,
+            labels.maghrib to times.maghrib,
+            labels.isha to times.isha
+        )
+
         prayers.forEachIndexed { prayerIndex, (prayerName, prayerTime) ->
-            val trigger = ZonedDateTime.of(date, prayerTime, ReminderZone)
-                .minusMinutes(minutesBefore.toLong())
-            if (!trigger.isAfter(now)) return@forEachIndexed
+            if (!preferences.getBoolean(NotificationKeys[prayerIndex], true)) return@forEachIndexed
 
-            val requestCode = ((date.toEpochDay() % 100000L) * 10L + prayerIndex).toInt()
-            val intent = Intent(context, PrayerReminderReceiver::class.java).apply {
-                putExtra("request_code", requestCode)
-                putExtra("prayer_name", prayerName)
-                putExtra("city_name", city.name)
-                putExtra("minutes_before", minutesBefore)
-                putExtra("language_code", languageCode)
+            val exactTime = ZonedDateTime.of(date, prayerTime, ReminderZone)
+            if (exactTime.isAfter(now)) {
+                val code = requestCode(date, prayerIndex, true)
+                scheduleEvent(
+                    context = context,
+                    alarmManager = alarmManager,
+                    requestCode = code,
+                    trigger = exactTime,
+                    prayerName = prayerName,
+                    cityName = city.name,
+                    languageCode = languageCode,
+                    minutesBefore = 0,
+                    exactPrayer = true
+                )
+                requestCodes += code
             }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val triggerMillis = trigger.toInstant().toEpochMilli()
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerMillis,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerMillis,
-                    pendingIntent
-                )
+            if (notificationEnabled && reminderMinutes > 0) {
+                val reminderTime = exactTime.minusMinutes(reminderMinutes.toLong())
+                if (reminderTime.isAfter(now)) {
+                    val code = requestCode(date, prayerIndex, false)
+                    scheduleEvent(
+                        context = context,
+                        alarmManager = alarmManager,
+                        requestCode = code,
+                        trigger = reminderTime,
+                        prayerName = prayerName,
+                        cityName = city.name,
+                        languageCode = languageCode,
+                        minutesBefore = reminderMinutes,
+                        exactPrayer = false
+                    )
+                    requestCodes += code
+                }
             }
-            requestCodes += requestCode
         }
     }
 
@@ -254,17 +133,65 @@ private fun schedulePrayerReminders(
         .apply()
 }
 
-private fun cancelPrayerReminders(context: Context) {
+private fun requestCode(date: LocalDate, prayerIndex: Int, exactPrayer: Boolean): Int {
+    val base = ((date.toEpochDay() % 100000L) * 100L).toInt()
+    return base + prayerIndex * 2 + if (exactPrayer) 1 else 0
+}
+
+private fun scheduleEvent(
+    context: Context,
+    alarmManager: AlarmManager,
+    requestCode: Int,
+    trigger: ZonedDateTime,
+    prayerName: String,
+    cityName: String,
+    languageCode: String,
+    minutesBefore: Int,
+    exactPrayer: Boolean
+) {
+    val intent = Intent(context, PrayerReminderReceiver::class.java).apply {
+        putExtra("request_code", requestCode)
+        putExtra("prayer_name", prayerName)
+        putExtra("city_name", cityName)
+        putExtra("language_code", languageCode)
+        putExtra("minutes_before", minutesBefore)
+        putExtra("exact_prayer", exactPrayer)
+    }
+
+    val pendingIntent = PendingIntent.getBroadcast(
+        context,
+        requestCode,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val triggerMillis = trigger.toInstant().toEpochMilli()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+        alarmManager.setAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            triggerMillis,
+            pendingIntent
+        )
+    } else {
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            triggerMillis,
+            pendingIntent
+        )
+    }
+}
+
+private fun cancelPrayerEvents(context: Context) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val preferences = context.getSharedPreferences(ReminderSchedulePrefs, Context.MODE_PRIVATE)
-    val requestCodes = preferences.getString(ReminderCodesKey, "").orEmpty()
+    val schedulePrefs = context.getSharedPreferences(ReminderSchedulePrefs, Context.MODE_PRIVATE)
+    val requestCodes = schedulePrefs.getString(ReminderCodesKey, "").orEmpty()
         .split(',')
         .mapNotNull { it.toIntOrNull() }
 
-    requestCodes.forEach { requestCode ->
+    requestCodes.forEach { code ->
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            requestCode,
+            code,
             Intent(context, PrayerReminderReceiver::class.java),
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
@@ -274,30 +201,46 @@ private fun cancelPrayerReminders(context: Context) {
         }
     }
 
-    preferences.edit().remove(ReminderCodesKey).apply()
+    schedulePrefs.edit().remove(ReminderCodesKey).apply()
 }
 
 class PrayerReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val preferences = context.getSharedPreferences(AppPrefs, Context.MODE_PRIVATE)
+        val exactPrayer = intent.getBooleanExtra("exact_prayer", false)
+        val prayerName = intent.getStringExtra("prayer_name").orEmpty()
+        val cityName = intent.getStringExtra("city_name").orEmpty()
+        val languageCode = intent.getStringExtra("language_code") ?: "tm"
+        val minutesBefore = intent.getIntExtra("minutes_before", 0)
+        val requestCode = intent.getIntExtra("request_code", 1001)
+
+        if (exactPrayer) {
+            if (preferences.getBoolean("vibration_enabled", true)) {
+                vibrateAtPrayer(context)
+            }
+            if (preferences.getBoolean("azan_enabled", false)) {
+                runCatching { startAzanPlayback(context) }
+            }
+        }
+
+        val shouldNotify = if (exactPrayer) {
+            preferences.getBoolean("prayer_time_notification", false)
+        } else {
+            true
+        }
+
+        if (!shouldNotify) return
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
 
         createReminderChannel(context)
-
-        val requestCode = intent.getIntExtra("request_code", 1001)
-        val prayerName = intent.getStringExtra("prayer_name").orEmpty()
-        val cityName = intent.getStringExtra("city_name").orEmpty()
-        val minutesBefore = intent.getIntExtra("minutes_before", 0)
-        val languageCode = intent.getStringExtra("language_code") ?: "tm"
-        val strings = reminderStrings(languageCode)
-
-        val message = when (languageCode) {
-            "ru" -> if (minutesBefore > 0) "$prayerName через $minutesBefore мин. • $cityName" else "$prayerName • $cityName"
-            "en" -> if (minutesBefore > 0) "$prayerName in $minutesBefore min • $cityName" else "$prayerName • $cityName"
-            "tr" -> if (minutesBefore > 0) "$prayerName için $minutesBefore dk kaldı • $cityName" else "$prayerName • $cityName"
-            else -> if (minutesBefore > 0) "$prayerName wagtyna $minutesBefore minut galdy • $cityName" else "$prayerName • $cityName"
+        val strings = receiverStrings(languageCode)
+        val message = if (exactPrayer || minutesBefore <= 0) {
+            prayerName + " • " + cityName
+        } else {
+            strings.minutesLeft(minutesBefore) + " • " + prayerName + " • " + cityName
         }
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
@@ -312,14 +255,13 @@ class PrayerReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, ReminderChannelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(strings.notificationTitle)
+            .setContentTitle(strings.prayerTime)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setContentIntent(openPendingIntent)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
 
         NotificationManagerCompat.from(context).notify(requestCode, notification)
@@ -331,21 +273,25 @@ class PrayerBootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
 
         val preferences = context.getSharedPreferences(AppPrefs, Context.MODE_PRIVATE)
-        val minutesBefore = preferences.getInt(ReminderMinutesKey, -1)
-        if (minutesBefore < 0) return
-
         val cityName = preferences.getString("city", "Köneürgenç") ?: "Köneürgenç"
         val city = Cities.firstOrNull { it.name == cityName } ?: return
         val languageCode = preferences.getString("language", "tm") ?: "tm"
         val language = AppLanguage.entries.firstOrNull { it.code == languageCode } ?: AppLanguage.TM
 
-        schedulePrayerReminders(
+        reschedulePrayerEvents(
             context = context,
             city = city,
             labels = prayerLabels(language),
-            languageCode = languageCode,
-            minutesBefore = minutesBefore,
-            startDate = LocalDate.now(ReminderZone)
+            languageCode = languageCode
+        )
+    }
+}
+
+private fun vibrateAtPrayer(context: Context) {
+    runCatching {
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.vibrate(
+            VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE)
         )
     }
 }
