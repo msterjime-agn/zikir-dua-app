@@ -278,10 +278,12 @@ private fun savePrayerCalculationMode(
 }
 
 
-private fun prayerCalculationModeLabel(context: Context): String {
+private fun prayerCalculationModeLabel(context: Context, language: AppLanguage): String {
     return when (getPrayerCalculationMode(context)) {
-        PrayerCalculationMode.MUFTIATE_TKM -> "Муфтият ТКМ"
-        PrayerCalculationMode.OFFLINE_BACKUP -> "Офлайн расчёт"
+        PrayerCalculationMode.MUFTIATE_TKM ->
+            localized(language, "Müftülik TKM", "Муфтият ТКМ", "Muftiate TKM", "Müftülük TKM")
+        PrayerCalculationMode.OFFLINE_BACKUP ->
+            localized(language, "Oflaýn hasaplama", "Офлайн расчёт", "Offline calculation", "Çevrimdışı hesaplama")
     }
 }
 
@@ -336,9 +338,26 @@ private fun getPrayerCalculationParameters(context: Context): PrayerCalculationP
 }
 
 
-private fun prayerParametersLabel(context: Context): String {
-    val p = getPrayerCalculationParameters(context)
-    return "Фаджр ${p.fajrAngle}° • Иша ${p.ishaAngle}° • ${p.description}"
+private fun prayerParametersLabel(context: Context, language: AppLanguage): String {
+    return when (getPrayerCalculationMode(context)) {
+        PrayerCalculationMode.MUFTIATE_TKM -> localized(
+            language,
+            "Takyk Müftülik tertibi • sebit boýunça tablisa",
+            "Точное расписание Муфтията • таблица по региону",
+            "Exact Muftiate timetable • regional table",
+            "Kesin Müftülük takvimi • bölgesel tablo"
+        )
+        PrayerCalculationMode.OFFLINE_BACKUP -> {
+            val p = getPrayerCalculationParameters(context)
+            localized(
+                language,
+                "Ertir ${p.fajrAngle}° • Ýassy ${p.ishaAngle}° • Oflaýn",
+                "Фаджр ${p.fajrAngle}° • Иша ${p.ishaAngle}° • Офлайн",
+                "Fajr ${p.fajrAngle}° • Isha ${p.ishaAngle}° • Offline",
+                "Sabah ${p.fajrAngle}° • Yatsı ${p.ishaAngle}° • Çevrimdışı"
+            )
+        }
+    }
 }
 
 private val AppColors = lightColorScheme(
@@ -473,9 +492,8 @@ private fun calculateMuftiateTKMPrayerTimes(
     date: LocalDate,
     city: City
 ): PrayerTimes {
-    // Подготовлено место для точной формулы Муфтията ТКМ.
-    // До проверки официальной методики используется текущий стабильный расчёт.
-    return calculatePrayerTimes(date, city)
+    return MuftiateSchedule.prayerTimes(date, city)
+        ?: calculatePrayerTimes(date, city)
 }
 
 
@@ -493,15 +511,10 @@ internal fun calculatePrayerTimesByMode(
     city: City
 ): PrayerTimes {
     return when (getPrayerCalculationMode(context)) {
-        PrayerCalculationMode.MUFTIATE_TKM -> {
-            // Здесь будет подключён точный алгоритм Муфтията ТКМ.
-            // Пока используется стабильный расчёт как резерв до замены формул.
-            calculatePrayerTimesWithParameters(context, date, city)
-        }
-
-        PrayerCalculationMode.OFFLINE_BACKUP -> {
-            calculatePrayerTimes(date, city)
-        }
+        PrayerCalculationMode.MUFTIATE_TKM ->
+            calculateMuftiateTKMPrayerTimes(date, city)
+        PrayerCalculationMode.OFFLINE_BACKUP ->
+            calculatePrayerTimes(date, city, context)
     }
 }
 
@@ -517,17 +530,21 @@ internal fun calculatePrayerTimesWithContext(
     date: LocalDate,
     city: City
 ): PrayerTimes {
-    val base = calculatePrayerTimes(date, city)
+    return when (getPrayerCalculationMode(context)) {
+        PrayerCalculationMode.MUFTIATE_TKM ->
+            calculateMuftiateTKMPrayerTimes(date, city)
 
-    // На этом этапе подключаем выбор Аср к расчёту.
-    // Остальные времена сохраняются без изменений.
-    return base.copy(
-        asr = calculateAsrTime(
-            context,
-            date,
-            city
-        )
-    )
+        PrayerCalculationMode.OFFLINE_BACKUP -> {
+            val base = calculatePrayerTimes(date, city, context)
+            base.copy(
+                asr = calculateAsrTime(
+                    context,
+                    date,
+                    city
+                )
+            )
+        }
+    }
 }
 
 private fun calculateAsrTime(
@@ -1051,7 +1068,7 @@ LaunchedEffect("auto_location") {
 
     val text = uiText(language)
     val prayerNames = prayerLabels(language)
-    val prayerTimes = remember(selectedCity, now.toLocalDate()) {
+    val prayerTimes = remember(selectedCity, now.toLocalDate(), selectedTab) {
         calculatePrayerTimesWithContext(context, now.toLocalDate(), selectedCity)
     }
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
@@ -1172,7 +1189,7 @@ private fun HomeScreen(
                             Text("📍 ${city.name}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                             Text(regionLabel(city, language), color = Color.White.copy(alpha = .65f), fontSize = 12.sp)
                              Text(
-                                 "🕌 ${prayerCalculationModeLabel(LocalContext.current)}",
+                                 "🕌 ${prayerCalculationModeLabel(LocalContext.current, language)}",
                                  color = Gold,
                                  fontSize = 11.sp
                              )
@@ -1398,6 +1415,18 @@ private fun AsrCalculationSettingsCard(
             color = DeepGreen
         )
 
+        Text(
+            localized(
+                language,
+                "Diňe oflaýn ätiýaçlyk hasaplamasyna täsir edýär.",
+                "Влияет только на резервный офлайн-расчёт.",
+                "Only affects the offline backup calculation.",
+                "Yalnızca çevrimdışı yedek hesabı etkiler."
+            ),
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
@@ -1501,19 +1530,28 @@ private fun PrayerParametersCard(language: AppLanguage) {
         )
 
         Text(
-            prayerParametersLabel(context),
+            prayerParametersLabel(context, language),
             color = Green,
             fontSize = 14.sp
         )
 
         Text(
-            localized(
-                language,
-                "Müftüligiň takyk maglumat bazasy birikdirilýänçä bu parametrler ätiýaçlyk hasaplama üçindir.",
-                "Эти параметры используются только как резервный расчёт до подключения точной базы Муфтията.",
-                "These parameters are only a backup until the exact Muftiate database is connected.",
-                "Kesin Müftülük veritabanı bağlanana kadar bu parametreler yalnızca yedek hesaplama içindir."
-            ),
+            when (getPrayerCalculationMode(context)) {
+                PrayerCalculationMode.MUFTIATE_TKM -> localized(
+                    language,
+                    "Asyl Namaz wagty maglumat bazasyndaky sebit tertibi ulanylýar.",
+                    "Используется региональное расписание из исходной базы Namaz wagty.",
+                    "The regional timetable from the original Namaz wagty database is used.",
+                    "Orijinal Namaz wagty veritabanındaki bölgesel takvim kullanılıyor."
+                )
+                PrayerCalculationMode.OFFLINE_BACKUP -> localized(
+                    language,
+                    "Bu režimde wagtlar astronomiki formula bilen ätiýaçlyk hökmünde hasaplanýar.",
+                    "В этом режиме время рассчитывается резервной астрономической формулой.",
+                    "In this mode prayer times use the backup astronomical calculation.",
+                    "Bu modda vakitler yedek astronomik hesaplamayla belirlenir."
+                )
+            },
             color = Color.Gray,
             fontSize = 12.sp
         )
