@@ -1641,186 +1641,273 @@ private fun NotificationSettingsScreen(
 
 
 @Composable
-private fun DhikrScreen(text: UiText) {
+private fun DhikrScreen(text: UiText, language: AppLanguage) {
     var selected by remember { mutableStateOf<String?>(null) }
+    var expandedItems by remember { mutableStateOf(setOf<Int>()) }
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
-    var counts by remember {
-        mutableStateOf(
-            mutableMapOf<Int, Int>().apply {
-                for (i in 0..100) {
-                    val saved = preferences.getInt("dhikr_count_$i", 0)
-                    if (saved > 0) {
-                        put(i, saved)
-                    }
-                }
-            }
-        )
-    }
 
-    fun saveDhikrCount(index: Int, value: Int) {
-        preferences.edit().putInt("dhikr_count_$index", value).apply()
-    }
+    fun t(tm: String, ru: String, en: String, tr: String): String =
+        localized(language, tm, ru, en, tr)
 
+    val ayatKursi = "Allahu la ilaha illa Huwa, Al-Hayyul-Qayyum. La ta'khudhuhu sinatun wa la nawm. Lahu ma fis-samawati wa ma fil-ard. Man dhal-ladhi yashfa'u 'indahu illa bi-idhnih. Ya'lamu ma bayna aydihim wa ma khalfahum. Wa la yuhituna bi-shay'in min 'ilmihi illa bima sha'. Wasi'a kursiyyuhus-samawati wal-ard. Wa la ya'uduhu hifzuhuma. Wa Huwal-'Aliyyul-'Azim."
+    val tahleel = "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir."
     val categories = linkedMapOf(
-        "☀ После Фаджра" to listOf(
+        t("☀ Ertir namazyndan soň", "☀ После Фаджра", "☀ After Fajr", "☀ Sabah namazından sonra") to listOf(
             DhikrItem(
-                "Аят аль-Курси ×1",
-                "اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ",
-                "Allahu la ilaha illa huwa al-Hayyul-Qayyum",
-                "Читать Аят аль-Курси.",
-                "После Фаджра",
-                "Поминание Аллаха и защита.",
-                "Коран 2:255",
+                t("Aýat al-Kursi ×1", "Аят аль-Курси ×1", "Ayat al-Kursi ×1", "Ayetel Kürsi ×1"),
+                "",
+                ayatKursi,
+                t(
+                    "Alla — Ondan başga ybadat edilmäge hakly ilah ýokdur. Ol Diridir we ähli zady dolandyrýandyr. Ony ne ukusyrama, ne-de uky tutar. Asmanlardaky we ýerdäki ähli zat Onuňkydyr. Onuň rugsady bolmasa hiç kim Onuň huzurynda şepagat edip bilmez. Ol olaryň öňündäki we arkasyndaky zatlary bilýär. Olar bolsa Onuň ylmyndan diňe Onuň islänini gurşap bilerler. Onuň Kursisi asmanlary we ýeri gurşap alandyr. Olary goramak Oňa kyn düşmez. Ol Beýikdir, Uludyr.",
+                    "Аллах — нет божества, достойного поклонения, кроме Него, Живого, Вседержителя. Им не овладевают ни дремота, ни сон. Ему принадлежит всё на небесах и на земле. Кто станет заступаться перед Ним без Его дозволения? Он знает их будущее и прошлое. Они постигают из Его знания лишь то, что Он пожелает. Его Курси объемлет небеса и землю, и не тяготит Его охрана их. Он — Возвышенный, Великий.",
+                    "Allah—there is no deity worthy of worship except Him, the Ever-Living, the Sustainer. Neither drowsiness nor sleep overtakes Him. To Him belongs whatever is in the heavens and the earth. No one can intercede except by His permission. He knows what is before and behind them, and they grasp only what He wills of His knowledge. His Kursi extends over the heavens and the earth, and preserving them does not tire Him. He is the Most High, the Great.",
+                    "Allah, O'ndan başka ibadete layık ilah yoktur; O diridir ve her şeyi ayakta tutandır. O'nu ne uyuklama ne de uyku tutar. Göklerde ve yerde ne varsa O'nundur. İzni olmadan O'nun katında kim şefaat edebilir? O, önlerindekini ve arkalarındakini bilir. Onlar O'nun ilminden ancak dilediği kadarını kavrayabilir. Kürsüsü gökleri ve yeri kuşatmıştır; onları korumak O'na ağır gelmez. O yücedir, büyüktür."
+                ),
+                t("Ertir namazyndan soň", "После Фаджра", "After Fajr", "Sabah namazından sonra"),
+                t("Alla ýatlamak we gorag dilemek.", "Поминание Аллаха и просьба о защите.", "Remembering Allah and seeking protection.", "Allah'ı anmak ve korunma dilemek."),
+                t("Gurhan 2:255", "Коран 2:255", "Quran 2:255", "Kur'an 2:255"),
                 1
             ),
             DhikrItem(
-                "Утренний зикр ×3",
+                t("Ertirki tesbih ×3", "Утренний зикр ×3", "Morning dhikr ×3", "Sabah zikri ×3"),
                 "",
-                "Subhanallahi wa bihamdihi, adada khalqihi...",
-                "Пречист Аллах и хвала Ему.",
-                "После Фаджра",
-                "Прославление Аллаха.",
-                "Хадис"
-            ),
-            DhikrItem(
-                "Таухид ×100",
-                "",
-                "La ilaha illallahu wahdahu la sharika lah...",
-                "Нет божества кроме Аллаха, у Которого нет сотоварища.",
-                "Утром или в течение дня",
-                "Таухид, поминание Аллаха и награда.",
-                "Хадисы",
-                100
-            )
-        ),
-        "💼 Перед работой" to listOf(
-            DhikrItem(
-                "Дуа пророка Мусы (а.с.) об облегчении дела ×1",
-                "",
-                "Rabbi ishrah li sadri wa yassir li amri...",
-                "Господи! Раскрой мою грудь, облегчи моё дело.",
-                "Перед работой, разговором, экзаменом",
-                "Облегчение дела, спокойствие и ясная речь.",
-                "Коран 20:25–28"
-            ),
-            DhikrItem(
-                "Для знаний ×1",
-                "",
-                "Rabbi zidni ilma",
-                "Господи! Приумножь мои знания.",
-                "Перед учёбой и интеллектуальной работой",
-                "Полезные знания и понимание.",
-                "Коран 20:114"
-            )
-        ),
-        "🕌 После намаза" to listOf(
-            DhikrItem(
-                "Истигфар ×3",
-                "أَسْتَغْفِرُ اللَّهَ",
-                "Astaghfirullah",
-                "Прошу Аллаха о прощении.",
-                "После обязательного намаза",
-                "Просьба о прощении.",
-                "Сунна",
+                "Subhanallahi wa bihamdihi, 'adada khalqihi, wa rida nafsihi, wa zinata 'arshihi, wa midada kalimatihi.",
+                t(
+                    "Allany mahluklarynyň sanyça, Öz razylygyça, Arşynyň agramyça we sözleriniň syýasyça päk diýip tesbih edýärin hem-de Oňa hamd aýdýaryn.",
+                    "Пречист Аллах и хвала Ему — по числу Его творений, по мере Его довольства, по весу Его Трона и по количеству чернил для Его слов.",
+                    "Glory and praise be to Allah—as many as His creation, as much as pleases Him, as heavy as His Throne, and as vast as the ink for His words.",
+                    "Allah'ı yaratılmışlarının sayısınca, razı olacağı kadar, Arş'ının ağırlığınca ve kelimelerinin mürekkebi kadar tesbih eder ve O'na hamd ederim."
+                ),
+                t("Irden", "Утром", "In the morning", "Sabah"),
+                t("Tesbih we hamd.", "Прославление и хвала Аллаху.", "Glorification and praise of Allah.", "Tesbih ve hamd."),
+                t("Sahih Muslim", "Сахих Муслим", "Sahih Muslim", "Sahih Müslim"),
                 3
             ),
             DhikrItem(
-                "Субханаллах ×33",
+                t("Töwhid ×100", "Таухид ×100", "Tawhid ×100", "Tevhid ×100"),
                 "",
-                "Subhanallah",
-                "Пречист Аллах.",
-                "После намаза",
-                "Прославление Аллаха.",
-                "Сунна",
+                tahleel,
+                t(
+                    "Alladan başga ybadat edilmäge hakly ilah ýokdur. Ol ýeke-täkdir, şärigi ýokdur. Mülk hem, hamd hem Onuňkydyr. Ol ähli zada Kadyrdyr.",
+                    "Нет божества, достойного поклонения, кроме одного Аллаха, у Которого нет сотоварища. Ему принадлежит власть и хвала, и Он способен на всякую вещь.",
+                    "There is no deity worthy of worship except Allah alone, without partner. To Him belong sovereignty and praise, and He has power over all things.",
+                    "Allah'tan başka ibadete layık ilah yoktur; O tektir, ortağı yoktur. Mülk ve hamd O'nundur ve O her şeye kadirdir."
+                ),
+                t("Irden ýa-da günüň dowamynda", "Утром или в течение дня", "Morning or during the day", "Sabah veya gün içinde"),
+                t("Töwhid we zikr.", "Таухид и поминание Аллаха.", "Tawhid and remembrance of Allah.", "Tevhid ve zikir."),
+                t("Sahih hadyslar", "Достоверные хадисы", "Authentic hadiths", "Sahih hadisler"),
+                100
+            )
+        ),
+        t("💼 Işe başlamazdan öň", "💼 Перед работой", "💼 Before work", "💼 İşten önce") to listOf(
+            DhikrItem(
+                t("Musa pygamberiň (a.s.) işi ýeňilleşdirmek dogasy ×1", "Дуа пророка Мусы (а.с.) об облегчении дела ×1", "Prophet Musa's prayer for ease ×1", "Musa Peygamberin işi kolaylaştırma duası ×1"),
+                "",
+                "Rabbi ishrah li sadri, wa yassir li amri, wahlul 'uqdatan min lisani, yafqahu qawli.",
+                t(
+                    "Eý, Rebbim! Döşümi giňelt, işimi ýeňilleşdir, dilimdäki düwüni çöz, sözlerime düşünsünler.",
+                    "Господи! Раскрой мою грудь, облегчи моё дело и развяжи узел на моём языке, чтобы они понимали мою речь.",
+                    "My Lord, expand my chest, ease my task, and untie the knot from my tongue so that they may understand my speech.",
+                    "Rabbim! Göğsümü genişlet, işimi kolaylaştır ve dilimdeki düğümü çöz ki sözümü anlasınlar."
+                ),
+                t("Işiň, gepleşigiň ýa-da synagyň öň ýanynda", "Перед работой, разговором или экзаменом", "Before work, a conversation, or an exam", "İş, görüşme veya sınav öncesi"),
+                t("Işiň ýeňilleşmegi we sözleriň düşnükli bolmagy.", "Облегчение дела и ясность речи.", "Ease in the task and clarity of speech.", "İşin kolaylaşması ve sözün anlaşılması."),
+                t("Gurhan 20:25–28", "Коран 20:25–28", "Quran 20:25–28", "Kur'an 20:25–28"),
+                1
+            ),
+            DhikrItem(
+                t("Ylym üçin doga ×1", "Дуа о знании ×1", "Prayer for knowledge ×1", "İlim duası ×1"),
+                "",
+                "Rabbi zidni 'ilma.",
+                t("Eý, Rebbim! Ylmymy artdyr.", "Господи! Приумножь мои знания.", "My Lord, increase me in knowledge.", "Rabbim! İlmimi artır."),
+                t("Okuwdan öň", "Перед учёбой", "Before studying", "Ders çalışmadan önce"),
+                t("Peýdaly ylym dilemek.", "Просьба о полезном знании.", "Seeking beneficial knowledge.", "Faydalı ilim istemek."),
+                t("Gurhan 20:114", "Коран 20:114", "Quran 20:114", "Kur'an 20:114"),
+                1
+            )
+        ),
+        t("🕌 Namazdan soň", "🕌 После намаза", "🕌 After prayer", "🕌 Namazdan sonra") to listOf(
+            DhikrItem(
+                t("Istigfar ×3", "Истигфар ×3", "Istighfar ×3", "İstiğfar ×3"),
+                "",
+                "Astaghfirullah.",
+                t("Alladan bagyşlanmagy dileýärin.", "Прошу у Аллаха прощения.", "I seek Allah's forgiveness.", "Allah'tan bağışlanma dilerim."),
+                t("Farz namazdan soň", "После обязательного намаза", "After an obligatory prayer", "Farz namazdan sonra"),
+                t("Bagyşlanmak dilemek.", "Просьба о прощении.", "Seeking forgiveness.", "Bağışlanma dilemek."),
+                t("Sahih Muslim", "Сахих Муслим", "Sahih Muslim", "Sahih Müslim"),
+                3
+            ),
+            DhikrItem(
+                t("Allahumma Antas-Salam ×1", "Аллахумма Антас-Салям ×1", "Allahumma Antas-Salam ×1", "Allahumma Antas-Salam ×1"),
+                "",
+                "Allahumma Antas-Salamu wa minkas-salam, tabarakta ya Dhal-Jalali wal-Ikram.",
+                t(
+                    "Eý Allah! Sen As-Salamsyň, salamatlyk Senden gelýär. Eý, beýiklik we kerem eýesi, Sen bereketlidirsiň.",
+                    "О Аллах! Ты — Ас-Салям, и от Тебя мир. Благословен Ты, Обладатель величия и почёта.",
+                    "O Allah, You are Peace and from You comes peace. Blessed are You, Possessor of Majesty and Honor.",
+                    "Allah'ım! Sen es-Selâm'sın, selamet Sendendir. Ey celâl ve ikram sahibi, Sen yücesin ve bereketlisin."
+                ),
+                t("Farz namazdan soň", "После обязательного намаза", "After an obligatory prayer", "Farz namazdan sonra"),
+                t("Allany zikr etmek.", "Поминание Аллаха.", "Remembering Allah.", "Allah'ı zikretmek."),
+                t("Sahih Muslim", "Сахих Муслим", "Sahih Muslim", "Sahih Müslim"),
+                1
+            ),
+            DhikrItem(
+                t("Aýat al-Kursi ×1", "Аят аль-Курси ×1", "Ayat al-Kursi ×1", "Ayetel Kürsi ×1"),
+                "",
+                ayatKursi,
+                t("Aýat al-Kursiniň doly transkripsiýasy.", "Полная транскрипция Аята аль-Курси.", "Full transliteration of Ayat al-Kursi.", "Ayetel Kürsi'nin tam okunuşu."),
+                t("Farz namazdan soň", "После обязательного намаза", "After an obligatory prayer", "Farz namazdan sonra"),
+                t("Zikr we gorag dilemek.", "Поминание и просьба о защите.", "Remembrance and protection.", "Zikir ve korunma."),
+                t("Gurhan 2:255", "Коран 2:255", "Quran 2:255", "Kur'an 2:255"),
+                1
+            ),
+            DhikrItem(
+                t("Subhanallah ×33", "Субханаллах ×33", "Subhanallah ×33", "Subhanallah ×33"),
+                "",
+                "Subhanallah.",
+                t("Allah ähli kemçiliklerden päkdir.", "Пречист Аллах.", "Glory be to Allah.", "Allah noksanlıklardan münezzehtir."),
+                t("Namazdan soň", "После намаза", "After prayer", "Namazdan sonra"),
+                t("Tesbih.", "Прославление Аллаха.", "Glorification.", "Tesbih."),
+                t("Sahih hadyslar", "Достоверные хадисы", "Authentic hadiths", "Sahih hadisler"),
                 33
             ),
             DhikrItem(
-                "Альхамдулиллях ×33",
+                t("Alhamdulillah ×33", "Альхамдулиллях ×33", "Alhamdulillah ×33", "Elhamdülillah ×33"),
                 "",
-                "Alhamdulillah",
-                "Хвала Аллаху.",
-                "После намаза",
-                "Благодарность Аллаху.",
-                "Сунна",
+                "Alhamdulillah.",
+                t("Ähli hamd Alla mahsusdyr.", "Хвала Аллаху.", "All praise is due to Allah.", "Hamd Allah'a mahsustur."),
+                t("Namazdan soň", "После намаза", "After prayer", "Namazdan sonra"),
+                t("Şükür we hamd.", "Благодарность и хвала.", "Gratitude and praise.", "Şükür ve hamd."),
+                t("Sahih hadyslar", "Достоверные хадисы", "Authentic hadiths", "Sahih hadisler"),
                 33
             ),
             DhikrItem(
-                "Аллаху Акбар ×33",
+                t("Allahu Akbar ×33", "Аллаху Акбар ×33", "Allahu Akbar ×33", "Allahu Ekber ×33"),
                 "",
-                "Allahu Akbar",
-                "Аллах Велик.",
-                "После намаза",
-                "Возвеличивание Аллаха.",
-                "Сунна",
+                "Allahu Akbar.",
+                t("Allah iň Beýikdir.", "Аллах Велик.", "Allah is the Greatest.", "Allah en büyüktür."),
+                t("Namazdan soň", "После намаза", "After prayer", "Namazdan sonra"),
+                t("Allany beýgeltmek.", "Возвеличивание Аллаха.", "Magnifying Allah.", "Allah'ı yüceltmek."),
+                t("Sahih hadyslar", "Достоверные хадисы", "Authentic hadiths", "Sahih hadisler"),
                 33
-            )
-        ),
-        "⚠ При трудностях" to listOf(
-            DhikrItem(
-                "Дуа пророка Юнуса (а.с.)",
-                "",
-                "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
-                "Нет божества кроме Тебя. Пречист Ты! Поистине, я был из числа несправедливых.",
-                "При беде, тревоге и тяжёлой ситуации",
-                "Обращение к Аллаху за избавлением от трудности.",
-                "Коран 21:87"
-            )
-        ),
-        "🌙 Перед сном" to listOf(
-            DhikrItem(
-                "Аят аль-Курси ×1",
-                "",
-                "Ayat al-Kursi",
-                "Читать Аят аль-Курси.",
-                "Перед сном",
-                "Завершение дня и просьба о защите.",
-                "Коран 2:255"
-            )
-        ),
-
-        "❤️ За здоровье" to listOf(
-            DhikrItem(
-                "Дуа пророка Айюба (а.с.) при болезни ×1",
-                "",
-                "Anni massaniyad-durru wa Anta arhamur-rahimin",
-                "Меня коснулась беда, а Ты — Милостивейший из милостивых.",
-                "При болезни, слабости или боли",
-                "Просьба об облегчении и исцелении.",
-                "Коран 21:83"
             ),
             DhikrItem(
-                "Дуа об исцелении ×1",
+                t("Töwhid bilen tamamlamak ×1", "Завершение таухидом ×1", "Finish with tawhid ×1", "Tevhid ile tamamlama ×1"),
                 "",
-                "Allahumma Rabb an-nas, azhibil-ba's, ishfi Antash-Shafi",
-                "О Аллах, Господь людей, удали болезнь и исцели.",
-                "При болезни — для себя или другого человека",
-                "Просьба об исцелении.",
-                "Хадис"
+                tahleel,
+                t(
+                    "Alladan başga ybadat edilmäge hakly ilah ýokdur. Ol ýeke-täkdir, şärigi ýokdur. Mülk hem, hamd hem Onuňkydyr. Ol ähli zada Kadyrdyr.",
+                    "Нет божества, достойного поклонения, кроме одного Аллаха, у Которого нет сотоварища. Ему принадлежит власть и хвала, и Он способен на всякую вещь.",
+                    "There is no deity worthy of worship except Allah alone, without partner. To Him belong sovereignty and praise, and He has power over all things.",
+                    "Allah'tan başka ibadete layık ilah yoktur; O tektir, ortağı yoktur. Mülk ve hamd O'nundur ve O her şeye kadirdir."
+                ),
+                t("Namazdan soň", "После намаза", "After prayer", "Namazdan sonra"),
+                t("Zikri tamamlamak.", "Завершение зикра.", "Completing the dhikr.", "Zikri tamamlama."),
+                t("Sahih Muslim", "Сахих Муслим", "Sahih Muslim", "Sahih Müslim"),
+                1
             )
         ),
-        "🌙 Вечером" to listOf(
+        t("⚠ Kynçylyk wagty", "⚠ При трудностях", "⚠ In difficulty", "⚠ Zorluk anında") to listOf(
             DhikrItem(
-                "Дуа покаяния ×1",
+                t("Ýunus pygamberiň (a.s.) dogasy ×1", "Дуа пророка Юнуса (а.с.) ×1", "Prayer of Prophet Yunus ×1", "Yunus Peygamberin duası ×1"),
                 "",
-                "Rabbana zalamna anfusana...",
-                "Господь наш! Мы поступили несправедливо по отношению к самим себе.",
-                "Вечером или после ошибки",
-                "Покаяние и прощение.",
-                "Коран 7:23"
+                "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin.",
+                t(
+                    "Senden başga ybadat edilmäge hakly ilah ýokdur. Sen päksiň. Hakykatdan hem men zalymlyk edenlerden boldum.",
+                    "Нет божества, достойного поклонения, кроме Тебя. Пречист Ты! Поистине, я был из числа несправедливых.",
+                    "There is no deity worthy of worship except You. Glory be to You; indeed, I was among the wrongdoers.",
+                    "Senden başka ibadete layık ilah yoktur. Seni tenzih ederim. Gerçekten ben zalimlerden oldum."
+                ),
+                t("Kynçylykda, gam-gussa ýa-da aladada", "При беде, тревоге или трудной ситуации", "In hardship, distress, or anxiety", "Sıkıntı, kaygı veya zorlukta"),
+                t("Alladan çykalga dilemek.", "Просьба к Аллаху об избавлении.", "Seeking relief from Allah.", "Allah'tan çıkış ve ferahlık istemek."),
+                t("Gurhan 21:87", "Коран 21:87", "Quran 21:87", "Kur'an 21:87"),
+                1
+            )
+        ),
+        t("🌙 Ýatmazdan öň", "🌙 Перед сном", "🌙 Before sleep", "🌙 Uyumadan önce") to listOf(
+            DhikrItem(
+                t("Aýat al-Kursi ×1", "Аят аль-Курси ×1", "Ayat al-Kursi ×1", "Ayetel Kürsi ×1"),
+                "",
+                ayatKursi,
+                t("Aýat al-Kursiniň doly transkripsiýasy.", "Полная транскрипция Аята аль-Курси.", "Full transliteration of Ayat al-Kursi.", "Ayetel Kürsi'nin tam okunuşu."),
+                t("Ýatmazdan öň", "Перед сном", "Before sleep", "Uyumadan önce"),
+                t("Gije gorag dilemek.", "Просьба о защите на ночь.", "Seeking protection for the night.", "Gece için korunma dilemek."),
+                t("Gurhan 2:255; Sahih al-Buhari", "Коран 2:255; Сахих аль-Бухари", "Quran 2:255; Sahih al-Bukhari", "Kur'an 2:255; Sahih Buhari"),
+                1
+            )
+        ),
+        t("❤️ Saglyk üçin", "❤️ За здоровье", "❤️ For health", "❤️ Sağlık için") to listOf(
+            DhikrItem(
+                t("Aýýub pygamberiň (a.s.) hassalyk dogasy ×1", "Дуа пророка Айюба (а.с.) при болезни ×1", "Prayer of Prophet Ayyub during illness ×1", "Eyyub Peygamberin hastalık duası ×1"),
+                "",
+                "Anni massaniyad-durru wa Anta arhamur-rahimin.",
+                t(
+                    "Maňa kynçylyk degdi, Sen bolsa rehimlileriň iň Rehimlisiň.",
+                    "Меня коснулась беда, а Ты — Милостивейший из милостивых.",
+                    "Adversity has touched me, and You are the Most Merciful of the merciful.",
+                    "Bana sıkıntı dokundu; Sen merhametlilerin en merhametlisisin."
+                ),
+                t("Hassalykda, gowşaklykda ýa-da agyryda", "При болезни, слабости или боли", "During illness, weakness, or pain", "Hastalık, halsizlik veya ağrıda"),
+                t("Ýeňillik we şypa dilemek.", "Просьба об облегчении и исцелении.", "Seeking relief and healing.", "Kolaylık ve şifa istemek."),
+                t("Gurhan 21:83", "Коран 21:83", "Quran 21:83", "Kur'an 21:83"),
+                1
             ),
             DhikrItem(
-                "Дуа Мусы за себя и близких ×1",
+                t("Şypa dogasy ×1", "Дуа об исцелении ×1", "Prayer for healing ×1", "Şifa duası ×1"),
                 "",
-                "Rabbighfir li wa li-akhi...",
-                "Господи! Прости меня и моего брата.",
-                "Вечером или при просьбе за близких",
-                "Прощение и милость Аллаха.",
-                "Коран 7:151"
+                "Allahumma Rabb an-nas, adhhib al-ba's, ishfi Antash-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama.",
+                t(
+                    "Eý Allah, adamlaryň Rebbi! Keseli aýyr, şypa ber. Şypa berýän Sensiň. Seniň şypaňdan başga şypa ýokdur. Hiç bir kesel galdyrmaýan şypa ber.",
+                    "О Аллах, Господь людей! Удали болезнь и исцели. Ты — Исцеляющий. Нет исцеления, кроме Твоего исцеления; даруй исцеление, не оставляющее болезни.",
+                    "O Allah, Lord of mankind, remove the harm and heal. You are the Healer. There is no healing except Your healing; grant a healing that leaves no illness.",
+                    "Allah'ım, insanların Rabbi! Hastalığı gider ve şifa ver. Şifa veren Sensin. Senin şifandan başka şifa yoktur; hiçbir hastalık bırakmayan bir şifa ver."
+                ),
+                t("Özüň ýa-da başga biri hassalanda", "При болезни — для себя или другого человека", "For yourself or another person during illness", "Kendin veya başkası hastayken"),
+                t("Şypa dilemek.", "Просьба об исцелении.", "Seeking healing.", "Şifa istemek."),
+                t("Sahih al-Buhari we Muslim", "Сахих аль-Бухари и Муслим", "Sahih al-Bukhari and Muslim", "Sahih Buhari ve Müslim"),
+                1
+            )
+        ),
+        t("🌙 Agşam", "🌙 Вечером", "🌙 Evening", "🌙 Akşam") to listOf(
+            DhikrItem(
+                t("Toba dogasy ×1", "Дуа покаяния ×1", "Prayer of repentance ×1", "Tövbe duası ×1"),
+                "",
+                "Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakunanna minal-khasirin.",
+                t(
+                    "Eý, Rebbimiz! Biz özümize zulum etdik. Eger bizi bagyşlamasaň we bize rehim etmeseň, hökman zyýan çekenlerden bolarys.",
+                    "Господь наш! Мы поступили несправедливо по отношению к самим себе. Если Ты не простишь нас и не помилуешь, мы непременно окажемся среди потерпевших убыток.",
+                    "Our Lord, we have wronged ourselves. If You do not forgive us and have mercy on us, we will surely be among the losers.",
+                    "Rabbimiz! Biz kendimize zulmettik. Eğer bizi bağışlamaz ve bize merhamet etmezsen mutlaka kaybedenlerden oluruz."
+                ),
+                t("Agşam ýa-da ýalňyşlykdan soň", "Вечером или после ошибки", "In the evening or after a mistake", "Akşam veya bir hatadan sonra"),
+                t("Toba we magfiret.", "Покаяние и прощение.", "Repentance and forgiveness.", "Tövbe ve bağışlanma."),
+                t("Gurhan 7:23", "Коран 7:23", "Quran 7:23", "Kur'an 7:23"),
+                1
+            ),
+            DhikrItem(
+                t("Musa pygamberiň özi we dogany üçin dogasy ×1", "Дуа Мусы за себя и брата ×1", "Musa's prayer for himself and his brother ×1", "Musa'nın kendisi ve kardeşi için duası ×1"),
+                "",
+                "Rabbighfir li wa li-akhi wa adkhilna fi rahmatika wa Anta arhamur-rahimin.",
+                t(
+                    "Eý, Rebbim! Meni we doganymy bagyşla, bizi Öz rahmetiňe giriz. Sen rehimlileriň iň Rehimlisiň.",
+                    "Господи! Прости меня и моего брата и введи нас в Свою милость. Ты — Милостивейший из милостивых.",
+                    "My Lord, forgive me and my brother and admit us into Your mercy. You are the Most Merciful of the merciful.",
+                    "Rabbim! Beni ve kardeşimi bağışla, bizi rahmetine dahil et. Sen merhametlilerin en merhametlisisin."
+                ),
+                t("Agşam ýa-da ýakynlar üçin doga edilende", "Вечером или при молитве за близких", "In the evening or when praying for loved ones", "Akşam veya yakınlar için dua ederken"),
+                t("Bagyşlanmak we rahmet.", "Прощение и милость.", "Forgiveness and mercy.", "Bağışlanma ve rahmet."),
+                t("Gurhan 7:151", "Коран 7:151", "Quran 7:151", "Kur'an 7:151"),
+                1
             )
         )
-
     )
+
+    LaunchedEffect(language) {
+        selected = null
+        expandedItems = emptySet()
+    }
 
     if (selected == null) {
         LazyColumn(
@@ -1830,75 +1917,143 @@ private fun DhikrScreen(text: UiText) {
             item {
                 Spacer(Modifier.height(10.dp))
                 Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text(text.dhikrPrayers, color = Green)
+                Text(text.chooseSection, color = Green)
             }
 
             items(categories.keys.toList()) { category ->
                 Card(
-                    Modifier.fillMaxWidth().clickable { selected = category },
+                    Modifier.fillMaxWidth().clickable {
+                        selected = category
+                        expandedItems = emptySet()
+                    },
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
-                    Text(category, Modifier.padding(18.dp), fontSize = 19.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                    Text(
+                        category,
+                        Modifier.padding(18.dp),
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepGreen
+                    )
                 }
             }
+            item { Spacer(Modifier.height(10.dp)) }
         }
     } else {
-        val list = categories[selected] ?: emptyList()
+        val currentCategory = selected.orEmpty()
+        val list = categories[currentCategory] ?: emptyList()
+        val categoryIndex = categories.keys.indexOf(currentCategory).coerceAtLeast(0)
 
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Button(onClick = { selected = null }) { Text("← Назад") }
-                Text(selected ?: "", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = {
+                    selected = null
+                    expandedItems = emptySet()
+                }) {
+                    Text(t("← Yza", "← Назад", "← Back", "← Geri"))
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(currentCategory, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
             }
 
             items(list.size) { index ->
                 val item = list[index]
-                val value = counts[index] ?: 0
+                val expanded = index in expandedItems
+                val countKey = "dhikr_count_" + categoryIndex + "_" + index
+                var value by remember(currentCategory, index) {
+                    mutableIntStateOf(preferences.getInt(countKey, 0))
+                }
 
                 Card(
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().clickable {
+                        expandedItems = if (expanded) {
+                            expandedItems - index
+                        } else {
+                            expandedItems + index
+                        }
+                    },
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(Modifier.padding(16.dp)) {
-                        Text(item.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                        if (item.arabic.isNotBlank()) Text(item.arabic, color = Gold, fontSize = 22.sp)
-                        Text(item.transliteration, color = Green)
-                        Text(item.translation, color = Color.Gray)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                item.title,
+                                modifier = Modifier.weight(1f),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DeepGreen
+                            )
+                            Text(if (expanded) "▲" else "▼", color = Gold)
+                        }
 
-                        if (item.whenToRead.isNotBlank()) {
-                            Text("Когда: ${item.whenToRead}", color = Green)
-                        }
-                        if (item.purpose.isNotBlank()) {
-                            Text("Цель: ${item.purpose}", color = Green)
-                        }
-                        if (item.source.isNotBlank()) {
-                            Text("Источник: ${item.source}", color = Gold)
-                        }
+                        if (!expanded) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                t("Açmak üçin basyň", "Нажмите, чтобы раскрыть", "Tap to expand", "Açmak için dokunun"),
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        } else {
+                            Spacer(Modifier.height(10.dp))
+                            Text(item.transliteration, color = Green, fontSize = 16.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text(item.translation, color = Color.Gray)
 
-                        Button(onClick = {
-                            val next = value + 1
-                            counts[index] = if (next >= item.countTarget) 0 else next
-                            saveDhikrCount(index, counts[index] ?: 0)
-                            counts = counts.toMutableMap()
-                            if (next >= item.countTarget) {
-                                vibrateComplete(context)
-                            } else {
-                                vibrateShort(context)
+                            if (item.whenToRead.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    t("Haçan: ", "Когда: ", "When: ", "Ne zaman: ") + item.whenToRead,
+                                    color = Green
+                                )
                             }
-                        }) {
-                            Text("$value / ${item.countTarget}  +1")
+                            if (item.purpose.isNotBlank()) {
+                                Text(
+                                    t("Maksat: ", "Цель: ", "Purpose: ", "Amaç: ") + item.purpose,
+                                    color = Green
+                                )
+                            }
+                            if (item.source.isNotBlank()) {
+                                Text(
+                                    t("Çeşme: ", "Источник: ", "Source: ", "Kaynak: ") + item.source,
+                                    color = Gold
+                                )
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+                            Button(
+                                onClick = {
+                                    val next = value + 1
+                                    if (next >= item.countTarget) {
+                                        value = 0
+                                        vibrateComplete(context)
+                                    } else {
+                                        value = next
+                                        vibrateShort(context)
+                                    }
+                                    preferences.edit().putInt(countKey, value).apply()
+                                }
+                            ) {
+                                Text(value.toString() + " / " + item.countTarget + "  +1")
+                            }
                         }
                     }
                 }
             }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }
+
 
 @Composable
 private fun TasbihScreen(text: UiText, language: AppLanguage) {
