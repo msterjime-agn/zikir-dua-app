@@ -25,6 +25,33 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Validate Muftiate timetable
+        run: |
+          python3 - <<'PY'
+          import base64, re, zlib
+          from datetime import date
+
+          path = "app/src/main/java/com/msterjime/zikirdua/MuftiateSchedule.kt"
+          text = open(path, encoding="utf-8").read()
+          m = re.search(r'COMPRESSED_DATA = "([^"]+)"', text)
+          assert m, "Muftiate timetable payload not found"
+          raw = zlib.decompress(base64.b64decode(m.group(1)))
+          assert len(raw) == 366 * 6 * 2 * 5, len(raw)
+
+          def times(region_index, month, day):
+              day_index = date(2024, month, day).timetuple().tm_yday - 1
+              base = region_index * (366 * 12) + day_index * 12
+              out = []
+              for i in range(6):
+                  minutes = int.from_bytes(raw[base+i*2:base+i*2+2], "big")
+                  out.append(f"{minutes//60:02d}:{minutes%60:02d}")
+              return out
+
+          assert times(2, 9, 19) == ["05:33","06:43","13:30","17:29","19:09","20:29"]
+          assert times(2, 9, 20) == ["05:34","06:44","13:30","17:28","19:08","20:28"]
+          print("Muftiate timetable OK:", times(2, 9, 20))
+          PY
+
       - name: Build debug APK
         run: |
           gradle --version
