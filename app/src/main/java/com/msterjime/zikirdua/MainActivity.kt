@@ -985,8 +985,6 @@ private val PopularZikrs = listOf(
 )
 
 private val AllahNames99 = listOf(
-
-private val AllahNames99 = listOf(
     "Ar-Rahman", "Ar-Rahim", "Al-Malik", "Al-Quddus", "As-Salam", "Al-Mu'min",
     "Al-Muhaymin", "Al-Aziz", "Al-Jabbar", "Al-Mutakabbir", "Al-Khaliq", "Al-Bari'",
     "Al-Musawwir", "Al-Ghaffar", "Al-Qahhar", "Al-Wahhab", "Ar-Razzaq", "Al-Fattah",
