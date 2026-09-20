@@ -17,9 +17,17 @@ import androidx.core.content.ContextCompat
 
 private const val AzanPlaybackChannelId = "azan_playback"
 private const val AzanPlaybackNotificationId = 91001
+private const val AzanPlaybackActionStop = "com.msterjime.zikirdua.STOP_AZAN"
 
 internal fun startAzanPlayback(context: Context) {
     val intent = Intent(context, AzanPlaybackService::class.java)
+    ContextCompat.startForegroundService(context, intent)
+}
+
+internal fun stopAzanPlayback(context: Context) {
+    val intent = Intent(context, AzanPlaybackService::class.java).apply {
+        action = AzanPlaybackActionStop
+    }
     ContextCompat.startForegroundService(context, intent)
 }
 
@@ -34,6 +42,12 @@ class AzanPlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == AzanPlaybackActionStop) {
+            stopCurrentPlayback()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val preferences = getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
         val selected = preferences.getString("azan_sound", "Azan 1").orEmpty()
 
