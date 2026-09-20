@@ -714,7 +714,7 @@ private fun uiText(language: AppLanguage): UiText = when (language) {
         counter = "Hasaplaýjy • 7 / 11 / 33 / 100 / 1000 / ∞",
         nextShort = "Indiki",
         offlineNote = "Häzir ätiýaçlyk oflaýn hasaplama görkezilýär: Ertir 18°, Ýassy 17°, UTC+5. Türkmenistanyň Müftüliginiň usuly esasy režim hökmünde indiki tapgyrda goşular.",
-        dhikrDuaTitle = "Zikir & Dogalar",
+        dhikrDuaTitle = "Zikir we dogalar",
         chooseSection = "Bölümi saýlaň",
         afterPrayer = "Namazdan soň",
         dhikrPrayers = "Zikir we dogalar",
@@ -832,6 +832,7 @@ private fun regionLabel(city: City, language: AppLanguage): String = when (langu
 }
 
 private fun findNextPrayer(
+    context: Context,
     now: ZonedDateTime,
     city: City,
     today: PrayerTimes,
@@ -849,7 +850,7 @@ private fun findNextPrayer(
         if (candidate.isAfter(now)) return NextPrayer(name, now.toLocalDate(), time)
     }
     val tomorrowDate = now.toLocalDate().plusDays(1)
-    val tomorrow = calculatePrayerTimes(tomorrowDate, city)
+    val tomorrow = calculatePrayerTimesWithContext(context, tomorrowDate, city)
     return NextPrayer(labels.fajr, tomorrowDate, tomorrow.fajr)
 }
 
@@ -1104,7 +1105,7 @@ LaunchedEffect("auto_location") {
     val prayerTimes = remember(selectedCity, now.toLocalDate(), prayerSettingsRevision) {
         calculatePrayerTimesWithContext(context, now.toLocalDate(), selectedCity)
     }
-    val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
+    val nextPrayer = findNextPrayer(context, now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
 
     LaunchedEffect(selectedCity.name, language.code, now.toLocalDate(), prayerSettingsRevision) {
@@ -1253,7 +1254,17 @@ private fun HomeScreen(
         item { Spacer(Modifier.height(10.dp)) }
         item {
             Text("NAMAZ WAGTY", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text("Zikir & Dogalar • v1.0", fontSize = 14.sp, color = Green)
+            Text(
+                localized(
+                    language,
+                    "Zikir we dogalar • v1.1",
+                    "Зикр и дуа • v1.1",
+                    "Dhikr & Duas • v1.1",
+                    "Zikir ve dualar • v1.1"
+                ),
+                fontSize = 14.sp,
+                color = Green
+            )
             Box {
                 Button(onClick = { languageMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
                     Text("🌐 ${language.label} ▾")
@@ -1493,16 +1504,30 @@ private fun AzanSettingsCard(
             }
         }
 
-        Button(
-            onClick = { playAzan(context) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = SoftGreen,
-                contentColor = DeepGreen
-            )
-        ) {
-            Text(
-                localized(language, "🔊 Sesi barla", "🔊 Проверить звук", "🔊 Test sound", "🔊 Sesi test et")
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { playAzan(context) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text(
+                    localized(language, "🔊 Barla", "🔊 Проверить", "🔊 Test", "🔊 Test")
+                )
+            }
+
+            Button(
+                onClick = { stopAzanPlayback(context) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text(
+                    localized(language, "■ Duruz", "■ Стоп", "■ Stop", "■ Durdur")
+                )
+            }
         }
 
         Text(
