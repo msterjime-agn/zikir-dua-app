@@ -968,13 +968,23 @@ private val PopularZikrs = listOf(
     "La hawla wa la quwwata illa billah",
     "Hasbunallahu wa ni'mal wakil",
     "Allahumma salli ala Muhammad",
-    "La ilaha illallah wahdahu la sharika lah",
-    "Subhanallahi wa bihamdihi adada khalqihi",
+    "La ilaha illallah wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir",
+    "Subhanallahi wa bihamdihi, 'adada khalqihi, wa rida nafsihi, wa zinata 'arshihi, wa midada kalimatihi",
+    "Allahumma Antas-Salamu wa minkas-salam, tabarakta ya Dhal-Jalali wal-Ikram",
+    "Rabbi ishrah li sadri, wa yassir li amri, wahlul 'uqdatan min lisani, yafqahu qawli",
+    "Rabbi zidni 'ilma",
+    "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
+    "Anni massaniyad-durru wa Anta arhamur-rahimin",
+    "Allahumma Rabb an-nas, adhhib al-ba's, ishfi Antash-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama",
+    "Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakunanna minal-khasirin",
+    "Rabbighfir li wa li-akhi wa adkhilna fi rahmatika wa Anta arhamur-rahimin",
     "Ya Fattah",
     "Ya Razzaq",
     "Ya Ghaniyy",
     "Ya Mughni"
 )
+
+private val AllahNames99 = listOf(
 
 private val AllahNames99 = listOf(
     "Ar-Rahman", "Ar-Rahim", "Al-Malik", "Al-Quddus", "As-Salam", "Al-Mu'min",
@@ -1015,6 +1025,7 @@ private fun ZikirDuaApp() {
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
     val savedCityName = remember { preferences.getString("city", "Köneürgenç") ?: "Köneürgenç" }
     val savedLanguageCode = remember { preferences.getString("language", "tm") ?: "tm" }
+    val savedLocationMode = remember { preferences.getString("location_mode", "gps") ?: "gps" }
 
     var selectedCity by remember {
         mutableStateOf(Cities.firstOrNull { it.name == savedCityName } ?: Cities.first { it.name == "Köneürgenç" })
@@ -1024,10 +1035,30 @@ private fun ZikirDuaApp() {
     }
     var selectedTab by remember { mutableStateOf(AppTab.HOME) }
     var now by remember { mutableStateOf(ZonedDateTime.now(TurkmenistanZone)) }
+    var locationMode by remember { mutableStateOf(savedLocationMode) }
+    var prayerSettingsRevision by remember { mutableIntStateOf(0) }
 
-    fun chooseCity(city: City) {
+    fun saveCity(city: City, mode: String) {
         selectedCity = city
-        preferences.edit().putString("city", city.name).apply()
+        locationMode = mode
+        preferences.edit()
+            .putString("city", city.name)
+            .putString("location_mode", mode)
+            .apply()
+    }
+
+    fun chooseManualCity(city: City) {
+        saveCity(city, "manual")
+    }
+
+    fun chooseGpsCity(city: City) {
+        if (locationMode == "gps") {
+            saveCity(city, "gps")
+        }
+    }
+
+    fun prayerSettingsChanged() {
+        prayerSettingsRevision++
     }
 
     fun chooseLanguage(newLanguage: AppLanguage) {
@@ -1036,7 +1067,9 @@ private fun ZikirDuaApp() {
     }
 
     fun refreshLocation() {
-        detectNearestCity(context) { detectedCity -> chooseCity(detectedCity) }
+        locationMode = "gps"
+        preferences.edit().putString("location_mode", "gps").apply()
+        detectNearestCity(context) { detectedCity -> chooseGpsCity(detectedCity) }
     }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -1063,18 +1096,20 @@ private fun ZikirDuaApp() {
 }
 
 LaunchedEffect("auto_location") {
-    requestLocation()
+    if (locationMode == "gps") {
+        requestLocation()
+    }
 }
 
     val text = uiText(language)
     val prayerNames = prayerLabels(language)
-    val prayerTimes = remember(selectedCity, now.toLocalDate(), selectedTab) {
+    val prayerTimes = remember(selectedCity, now.toLocalDate(), prayerSettingsRevision) {
         calculatePrayerTimesWithContext(context, now.toLocalDate(), selectedCity)
     }
     val nextPrayer = findNextPrayer(now, selectedCity, prayerTimes, prayerNames)
     val countdown = countdownText(now, nextPrayer)
 
-    LaunchedEffect(selectedCity.name, language.code, now.toLocalDate()) {
+    LaunchedEffect(selectedCity.name, language.code, now.toLocalDate(), prayerSettingsRevision) {
         reschedulePrayerEvents(
             context = context,
             city = selectedCity,
@@ -1127,6 +1162,7 @@ LaunchedEffect("auto_location") {
                     language = language,
                     onLanguageSelected = ::chooseLanguage,
                     onAutoLocation = ::requestLocation,
+                    onCitySelected = ::chooseManualCity,
                     onNotifications = { selectedTab = AppTab.PRAYER },
                     onDhikr = { selectedTab = AppTab.DHIKR },
                     onTasbih = { selectedTab = AppTab.TASBIH }
@@ -1134,7 +1170,9 @@ LaunchedEffect("auto_location") {
                 AppTab.PRAYER -> NotificationSettingsScreen(
                     city = selectedCity,
                     labels = prayerNames,
-                    language = language
+                    language = language,
+                    settingsRevision = prayerSettingsRevision,
+                    onPrayerSettingsChanged = ::prayerSettingsChanged
                 )
                 AppTab.DHIKR -> DhikrScreen(text, language)
                 AppTab.TASBIH -> TasbihScreen(text, language)
@@ -1153,12 +1191,60 @@ private fun HomeScreen(
     language: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
     onAutoLocation: () -> Unit,
+    onCitySelected: (City) -> Unit,
     onNotifications: () -> Unit,
     onDhikr: () -> Unit,
     onTasbih: () -> Unit
 ) {
     var languageMenuOpen by remember { mutableStateOf(false) }
+    var cityChooserOpen by remember { mutableStateOf(false) }
     val labels = prayerLabels(language)
+
+    if (cityChooserOpen) {
+        AlertDialog(
+            onDismissRequest = { cityChooserOpen = false },
+            title = {
+                Text(
+                    localized(
+                        language,
+                        "Şäheri saýla",
+                        "Выберите город",
+                        "Choose city",
+                        "Şehir seç"
+                    )
+                )
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.height(420.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(Cities) { option ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                onCitySelected(option)
+                                cityChooserOpen = false
+                            },
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (option.name == city.name) Gold else SoftGreen
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(option.name, fontWeight = FontWeight.Bold, color = DeepGreen)
+                                Text(
+                                    regionLabel(option, language),
+                                    color = DeepGreen.copy(alpha = 0.7f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize()
@@ -1194,7 +1280,24 @@ private fun HomeScreen(
                                  fontSize = 11.sp
                              )
                         }
-                        Button(onClick = onAutoLocation, colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)) { Text("GPS") }
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Button(
+                                onClick = onAutoLocation,
+                                colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = DeepGreen)
+                            ) { Text("GPS") }
+                            Button(
+                                onClick = { cityChooserOpen = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)
+                            ) {
+                                Text(
+                                    localized(language, "Şäher", "Город", "City", "Şehir"),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                     }
                     Spacer(Modifier.height(18.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1513,7 +1616,7 @@ private fun PrayerCalculationSettingsCard(
 }
 
 @Composable
-private fun PrayerParametersCard(language: AppLanguage) {
+private fun PrayerParametersCard(language: AppLanguage, settingsRevision: Int) {
     val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1562,7 +1665,9 @@ private fun PrayerParametersCard(language: AppLanguage) {
 private fun NotificationSettingsScreen(
     city: City,
     labels: PrayerLabels,
-    language: AppLanguage
+    language: AppLanguage,
+    settingsRevision: Int,
+    onPrayerSettingsChanged: () -> Unit
 ) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
@@ -1595,18 +1700,13 @@ private fun NotificationSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     val refreshSchedules = {
-                        reschedulePrayerEvents(
-                            context = context,
-                            city = city,
-                            labels = labels,
-                            languageCode = language.code
-                        )
+                        onPrayerSettingsChanged()
                     }
 
                     PrayerNotificationCard(language, refreshSchedules)
                     AzanSettingsCard(language, refreshSchedules)
                     PrayerCalculationSettingsCard(language, refreshSchedules)
-                    PrayerParametersCard(language)
+                    PrayerParametersCard(language, settingsRevision)
                     AsrCalculationSettingsCard(language, refreshSchedules)
 
                     var prayerTimeNotification by remember {
@@ -2043,7 +2143,16 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
                             )
                         } else {
                             Spacer(Modifier.height(10.dp))
-                            Text(item.transliteration, color = Green, fontSize = 16.sp)
+                            Text(
+                                t(
+                                    "Okalyşy: ",
+                                    "Транскрипция: ",
+                                    "Transliteration: ",
+                                    "Okunuş: "
+                                ) + item.transliteration,
+                                color = Green,
+                                fontSize = 16.sp
+                            )
                             Spacer(Modifier.height(8.dp))
                             Text(item.translation, color = Color.Gray)
 
