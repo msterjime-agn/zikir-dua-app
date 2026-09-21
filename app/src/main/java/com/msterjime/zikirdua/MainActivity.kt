@@ -109,6 +109,49 @@ private fun localized(
     AppLanguage.TR -> tr
 }
 
+private fun dhikrReading(text: String, language: AppLanguage): String {
+    if (language != AppLanguage.TM) return text
+
+    return when (text.trim()) {
+        "Allahu la ilaha illa Huwa, Al-Hayyul-Qayyum. La ta'khudhuhu sinatun wa la nawm. Lahu ma fis-samawati wa ma fil-ard. Man dhal-ladhi yashfa'u 'indahu illa bi-idhnih. Ya'lamu ma bayna aydihim wa ma khalfahum. Wa la yuhituna bi-shay'in min 'ilmihi illa bima sha'. Wasi'a kursiyyuhus-samawati wal-ard. Wa la ya'uduhu hifzuhuma. Wa Huwal-'Aliyyul-'Azim." ->
+            "Allahu lä ilähe illä Huwa, Al-Haýýul-Kaýýum. Lä tä'huzuhu sinätun wä lä näwm. Lahu mä fis-samawäti wä mä fil-arz. Men zäl-läzi ýeşfe'u 'indahu illä bi-iznih. Ýa'lamu mä baýna aýdihim wä mä halfahum. Wä lä ýuhituna bi-şeý'in min 'ilmihi illä bimä şa'. Wasi'a kursiýýuhus-samawäti wal-arz. Wä lä ýa'uduhu hifzuhumä. Wä Huwal-'Aliýýul-'Azim."
+        "Subhanallahi wa bihamdihi, 'adada khalqihi, wa rida nafsihi, wa zinata 'arshihi, wa midada kalimatihi." ->
+            "Subhanallahi wä bihamdihi, 'adada halkihi, wä rida nafsihi, wä zinata 'arşihi, wä midada kalimatihi."
+        "La ilaha illallahu wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir." ->
+            "Lä ilähe illallahu wahdahu lä şärikä lah, lahul-mulku wä lahul-hamdu wä huwa 'alä kulli şeý'in kadir."
+        "Rabbi ishrah li sadri, wa yassir li amri, wahlul 'uqdatan min lisani, yafqahu qawli." ->
+            "Rabbi işrah li sadri, wä ýassir li amri, wahlul 'ukdatan min lisäni, ýafkahu kawli."
+        "Rabbi zidni 'ilma." ->
+            "Rabbi zidni 'ilmä."
+        "Astaghfirullah." ->
+            "Astaghfirullah."
+        "Allahumma Antas-Salamu wa minkas-salam, tabarakta ya Dhal-Jalali wal-Ikram." ->
+            "Allahumma Antas-Salämu wä minkas-saläm, tabärakta ýa Zal-Jaläli wal-Ikram."
+        "Subhanallah." ->
+            "Subhanallah."
+        "Alhamdulillah." ->
+            "Alhamdulillah."
+        "Allahu Akbar." ->
+            "Allahu Akbar."
+        "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin." ->
+            "Lä ilähe illä Anta subhanaka inni kuntu minaz-zalimin."
+        "Anni massaniyad-durru wa Anta arhamur-rahimin." ->
+            "Anni massaniýad-durru wä Anta arhamur-rahimin."
+        "Allahumma Rabb an-nas, adhhib al-ba's, ishfi Antash-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama." ->
+            "Allahumma Rabb an-näs, azhib al-ba's, işfi Antaş-Şäfi, lä şifä'a illä şifä'uk, şifä'an lä ýugadiru sakama."
+        "Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakunanna minal-khasirin." ->
+            "Rabbanä zalamnä anfusanä wä in lam taghfir lanä wä tarhamnä lanakunnanna minal-häsirin."
+        "Rabbighfir li wa li-akhi wa adkhilna fi rahmatika wa Anta arhamur-rahimin." ->
+            "Rabbighfir li wä li-ahi wä adhilnä fi rahmatika wä Anta arhamur-rahimin."
+        else -> text
+            .replace("sh", "ş", ignoreCase = true)
+            .replace("kh", "h", ignoreCase = true)
+            .replace(" q", " k", ignoreCase = true)
+            .replace("wa ", "wä ", ignoreCase = true)
+            .replace(" la ", " lä ", ignoreCase = true)
+    }
+}
+
 
 private fun vibrateShort(context: Context) {
     runCatching {
@@ -2240,11 +2283,11 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
                             Spacer(Modifier.height(10.dp))
                             Text(
                                 t(
-                                    "Okalyşy: ",
+                                    "Türkmençe okalyşy: ",
                                     "Транскрипция: ",
                                     "Transliteration: ",
                                     "Okunuş: "
-                                ) + item.transliteration,
+                                ) + dhikrReading(item.transliteration, language),
                                 color = Green,
                                 fontSize = 16.sp
                             )
@@ -2368,7 +2411,7 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                                         )
                                         if (language != AppLanguage.EN) {
                                             Text(
-                                                zikr.value,
+                                                dhikrReading(zikr.value, language),
                                                 color = Green,
                                                 fontSize = 12.sp
                                             )
@@ -2471,9 +2514,9 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
             ) {
                 Text(
                     if (clickSoundEnabled)
-                        localized(language, "🔊 Şelçk ON", "🔊 Щелчок ON", "🔊 Click ON", "🔊 Tık ON")
+                        localized(language, "🔊 Ses ON", "🔊 Звук ON", "🔊 Sound ON", "🔊 Ses ON")
                     else
-                        localized(language, "🔇 Şelçk OFF", "🔇 Щелчок OFF", "🔇 Click OFF", "🔇 Tık OFF")
+                        localized(language, "🔇 Ses OFF", "🔇 Звук OFF", "🔇 Sound OFF", "🔇 Ses OFF")
                 )
             }
         }
@@ -2517,7 +2560,7 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                     } else {
                         val selectedChoice = PopularZikrs.firstOrNull { it.value == selectedZikr }
                         Text(
-                            selectedChoice?.label(language) ?: selectedZikr,
+                            selectedChoice?.label(language) ?: dhikrReading(selectedZikr, language),
                             color = Gold,
                             fontSize = 21.sp,
                             fontWeight = FontWeight.SemiBold,
