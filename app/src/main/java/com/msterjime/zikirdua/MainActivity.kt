@@ -1271,10 +1271,10 @@ private fun HomeScreen(
             Text(
                 localized(
                     language,
-                    "Zikir we dogalar • v1.1",
-                    "Зикр и дуа • v1.1",
-                    "Dhikr & Duas • v1.1",
-                    "Zikir ve dualar • v1.1"
+                    "Zikir we dogalar • v1.2",
+                    "Зикр и дуа • v1.2",
+                    "Dhikr & Duas • v1.2",
+                    "Zikir ve dualar • v1.2"
                 ),
                 fontSize = 14.sp,
                 color = Green
@@ -1449,20 +1449,29 @@ private fun AzanSettingsCard(
     }
 
     fun soundLabel(key: String): String = when (key) {
-        "Arabic Melody", "Melody 1" -> localized(
+        "Melody Oasis" -> localized(
             language,
-            "Arap saz owazy",
-            "Арабская мелодия",
-            "Arabic melody",
-            "Arap melodisi"
+            "Oazis — 15 sek.",
+            "Оазис — 15 сек.",
+            "Oasis — 15 sec.",
+            "Vaha — 15 sn."
         )
-        "Turkish Melody", "Melody 2" -> localized(
+        "Melody Nasheed" -> localized(
             language,
-            "Türk saz owazy",
-            "Турецкая мелодия",
-            "Turkish melody",
-            "Türk melodisi"
+            "Arap naşidi — 15 sek.",
+            "Арабский нашид — 15 сек.",
+            "Arabic nasheed — 15 sec.",
+            "Arap neşidi — 15 sn."
         )
+        "Melody Ney" -> localized(
+            language,
+            "Sufi neý — 15 sek.",
+            "Суфийский ней — 15 сек.",
+            "Sufi ney — 15 sec.",
+            "Sufi ney — 15 sn."
+        )
+        "Arabic Melody", "Turkish Melody", "Melody 1", "Melody 2" ->
+            localized(language, "Oazis — 15 sek.", "Оазис — 15 сек.", "Oasis — 15 sec.", "Vaha — 15 sn.")
         else -> key
     }
 
@@ -1533,7 +1542,7 @@ private fun AzanSettingsCard(
         )
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf("Azan 1", "Azan 2", "Arabic Melody", "Turkish Melody")) { sound ->
+            items(listOf("Azan 1", "Azan 2", "Melody Oasis", "Melody Nasheed", "Melody Ney")) { sound ->
                 Button(
                     onClick = {
                         selectedAzan = sound
