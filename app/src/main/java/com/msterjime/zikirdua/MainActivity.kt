@@ -1434,8 +1434,20 @@ private fun AzanSettingsCard(
     }
 
     fun soundLabel(key: String): String = when (key) {
-        "Melody 1" -> localized(language, "Gysga saz 1", "Короткая мелодия 1", "Short melody 1", "Kısa melodi 1")
-        "Melody 2" -> localized(language, "Gysga saz 2", "Короткая мелодия 2", "Short melody 2", "Kısa melodi 2")
+        "Arabic Melody", "Melody 1" -> localized(
+            language,
+            "Arap saz owazy",
+            "Арабская мелодия",
+            "Arabic melody",
+            "Arap melodisi"
+        )
+        "Turkish Melody", "Melody 2" -> localized(
+            language,
+            "Türk saz owazy",
+            "Турецкая мелодия",
+            "Turkish melody",
+            "Türk melodisi"
+        )
         else -> key
     }
 
@@ -1488,7 +1500,7 @@ private fun AzanSettingsCard(
         )
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf("Azan 1", "Azan 2", "Melody 1", "Melody 2")) { sound ->
+            items(listOf("Azan 1", "Azan 2", "Arabic Melody", "Turkish Melody")) { sound ->
                 Button(
                     onClick = {
                         selectedAzan = sound
@@ -1533,10 +1545,10 @@ private fun AzanSettingsCard(
         Text(
             localized(
                 language,
-                "Azan ýa-da saz başlasa, programmadan çyksaňyz hem soňuna çenli dowam eder.",
-                "Азан или мелодия продолжат играть до конца, даже если выйти или закрыть приложение.",
-                "Adhan or melody keeps playing to the end even if you leave or close the app.",
-                "Ezan veya melodi, uygulamadan çıksanız bile sonuna kadar çalmaya devam eder."
+                "Azan ýa-da namaz üçin saz başlasa, programmadan çyksaňyz hem soňuna çenli dowam eder.",
+                "Азан или мелодия уведомления о намазе продолжат играть до конца, даже если выйти или закрыть приложение.",
+                "Adhan or prayer notification melody keeps playing to the end even if you leave or close the app.",
+                "Ezan veya namaz bildirim melodisi, uygulamadan çıksanız bile sonuna kadar çalmaya devam eder."
             ),
             color = Color.Gray,
             fontSize = 12.sp
