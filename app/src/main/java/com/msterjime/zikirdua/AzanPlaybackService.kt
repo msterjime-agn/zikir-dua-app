@@ -88,9 +88,15 @@ class AzanPlaybackService : Service() {
         startForeground(AzanPlaybackNotificationId, notification)
         stopCurrentPlayback()
 
+        val melodyEnabled = preferences.getBoolean("melody_enabled", true)
+
         when (selected) {
-            "Arabic Melody" -> playGeneratedMelody(MelodyStyle.ARABIC)
-            "Turkish Melody" -> playGeneratedMelody(MelodyStyle.TURKISH)
+            "Arabic Melody" -> {
+                if (melodyEnabled) playGeneratedMelody(MelodyStyle.ARABIC) else stopSelf()
+            }
+            "Turkish Melody" -> {
+                if (melodyEnabled) playGeneratedMelody(MelodyStyle.TURKISH) else stopSelf()
+            }
             else -> {
                 val soundRes = if (selected.contains("2")) R.raw.azan_2 else R.raw.azan_1
                 player = MediaPlayer.create(this, soundRes)?.apply {
