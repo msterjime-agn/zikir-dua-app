@@ -135,6 +135,9 @@ private fun playAzan(context: Context) {
 }
 
 private fun playTasbihClick(context: Context) {
+    val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
+    if (!preferences.getBoolean("tasbih_click_enabled", true)) return
+
     runCatching {
         val player = MediaPlayer.create(context, R.raw.tasbih_soft_click)
         player?.setVolume(0.45f, 0.45f)
@@ -958,31 +961,42 @@ private fun tasbihLabels(language: AppLanguage): TasbihLabels = when (language) 
     AppLanguage.TR -> TasbihLabels("Zikir seç", "Zikri değiştir", "Zikirler", "Allah'ın 99 ismi", "Kendi zikrim", "Zikrinizi yazın", "Sınırsız", "Kaydet")
 }
 
+private data class ZikrChoice(
+    val value: String,
+    val tm: String,
+    val ru: String,
+    val en: String,
+    val tr: String
+)
+
+private fun ZikrChoice.label(language: AppLanguage): String =
+    localized(language, tm, ru, en, tr)
+
 private val PopularZikrs = listOf(
-    "Subhanallah",
-    "Alhamdulillah",
-    "Allahu Akbar",
-    "Astaghfirullah",
-    "La ilaha illallah",
-    "Subhanallahi wa bihamdihi",
-    "Subhanallahil azim",
-    "La hawla wa la quwwata illa billah",
-    "Hasbunallahu wa ni'mal wakil",
-    "Allahumma salli ala Muhammad",
-    "La ilaha illallah wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir",
-    "Subhanallahi wa bihamdihi, 'adada khalqihi, wa rida nafsihi, wa zinata 'arshihi, wa midada kalimatihi",
-    "Allahumma Antas-Salamu wa minkas-salam, tabarakta ya Dhal-Jalali wal-Ikram",
-    "Rabbi ishrah li sadri, wa yassir li amri, wahlul 'uqdatan min lisani, yafqahu qawli",
-    "Rabbi zidni 'ilma",
-    "La ilaha illa Anta subhanaka inni kuntu minaz-zalimin",
-    "Anni massaniyad-durru wa Anta arhamur-rahimin",
-    "Allahumma Rabb an-nas, adhhib al-ba's, ishfi Antash-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama",
-    "Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakunanna minal-khasirin",
-    "Rabbighfir li wa li-akhi wa adkhilna fi rahmatika wa Anta arhamur-rahimin",
-    "Ya Fattah",
-    "Ya Razzaq",
-    "Ya Ghaniyy",
-    "Ya Mughni"
+    ZikrChoice("Subhanallah", "Subhanallah — Alla ähli kemçiliklerden päkdir", "Субханаллах — Пречист Аллах", "Subhanallah — Glory be to Allah", "Sübhanallah — Allah noksanlıklardan münezzehtir"),
+    ZikrChoice("Alhamdulillah", "Alhamdulillah — Ähli hamd Alla mahsusdyr", "Альхамдулиллях — Хвала Аллаху", "Alhamdulillah — All praise is due to Allah", "Elhamdülillah — Hamd Allah'a mahsustur"),
+    ZikrChoice("Allahu Akbar", "Allahu Akbar — Alla iň Beýikdir", "Аллаху Акбар — Аллах Велик", "Allahu Akbar — Allah is the Greatest", "Allahu Ekber — Allah en büyüktür"),
+    ZikrChoice("Astaghfirullah", "Astaghfirullah — Alladan bagyşlanmagy dileýärin", "Астагфируллах — Прошу у Аллаха прощения", "Astaghfirullah — I seek Allah's forgiveness", "Estağfirullah — Allah'tan bağışlanma dilerim"),
+    ZikrChoice("La ilaha illallah", "La ilaha illallah — Alladan başga ilah ýokdur", "Ля иляха илляллах — Нет божества, кроме Аллаха", "La ilaha illallah — There is no deity but Allah", "Lâ ilâhe illallah — Allah'tan başka ilah yoktur"),
+    ZikrChoice("Subhanallahi wa bihamdihi", "Subhanallahi wa bihamdihi — Tesbih we hamd", "Субханаллахи ва бихамдихи — Прославление и хвала", "Subhanallahi wa bihamdihi — Glory and praise", "Sübhanallahi ve bihamdihi — Tesbih ve hamd"),
+    ZikrChoice("Subhanallahil azim", "Subhanallahil azim — Beýik Allany tesbih etmek", "Субханаллахиль-Азым — Прославление Великого Аллаха", "Subhanallahil azim — Glory be to Allah the Magnificent", "Sübhanallahil Azîm — Yüce Allah'ı tesbih"),
+    ZikrChoice("La hawla wa la quwwata illa billah", "La hawla wa la quwwata illa billah — Güýç-kuwwat diňe Alla bilendir", "Ля хауля ва ля куввата илля биллях — Сила только от Аллаха", "La hawla wa la quwwata illa billah — There is no power except through Allah", "Lâ havle ve lâ kuvvete illâ billâh — Güç yalnız Allah'tandır"),
+    ZikrChoice("Hasbunallahu wa ni'mal wakil", "Hasbunallahu wa ni'mal wakil — Alla bize ýeterlikdir", "Хасбуналлаху ва ни'маль вакиль — Нам достаточно Аллаха", "Hasbunallahu wa ni'mal wakil — Allah is sufficient for us", "Hasbunallahu ve ni'mel vekîl — Allah bize yeter"),
+    ZikrChoice("Allahumma salli ala Muhammad", "Allahumma salli ala Muhammad — Salawat", "Аллахумма салли аля Мухаммад — Салават", "Allahumma salli ala Muhammad — Salawat", "Allahümme salli alâ Muhammed — Salavat"),
+    ZikrChoice("La ilaha illallah wahdahu la sharika lah, lahul-mulku wa lahul-hamdu wa huwa 'ala kulli shay'in qadir", "Töwhid — La ilaha illallah wahdahu...", "Таухид — Ля иляха илляллаху вахдаху...", "Tawhid — La ilaha illallah wahdahu...", "Tevhid — Lâ ilâhe illallahu vahdehu..."),
+    ZikrChoice("Subhanallahi wa bihamdihi, 'adada khalqihi, wa rida nafsihi, wa zinata 'arshihi, wa midada kalimatihi", "Ertirki tesbih — Subhanallahi wa bihamdihi...", "Утренний зикр — Субханаллахи ва бихамдихи...", "Morning dhikr — Subhanallahi wa bihamdihi...", "Sabah zikri — Sübhanallahi ve bihamdihi..."),
+    ZikrChoice("Allahumma Antas-Salamu wa minkas-salam, tabarakta ya Dhal-Jalali wal-Ikram", "Namazdan soňky doga — Allahumma Antas-Salam", "После намаза — Аллахумма Антас-Салям", "After prayer — Allahumma Antas-Salam", "Namazdan sonra — Allahümme Entes-Selâm"),
+    ZikrChoice("Rabbi ishrah li sadri, wa yassir li amri, wahlul 'uqdatan min lisani, yafqahu qawli", "Musa pygamberiň işi ýeňilleşdirmek dogasy", "Дуа Мусы об облегчении дела", "Prayer of Musa for ease", "Musa Peygamberin kolaylık duası"),
+    ZikrChoice("Rabbi zidni 'ilma", "Ylym üçin doga — Rabbi zidni ilma", "Дуа о знании — Рабби зидни ильма", "Prayer for knowledge — Rabbi zidni ilma", "İlim duası — Rabbi zidni ilmen"),
+    ZikrChoice("La ilaha illa Anta subhanaka inni kuntu minaz-zalimin", "Ýunus pygamberiň dogasy", "Дуа пророка Юнуса", "Prayer of Prophet Yunus", "Yunus Peygamberin duası"),
+    ZikrChoice("Anni massaniyad-durru wa Anta arhamur-rahimin", "Aýýub pygamberiň hassalyk dogasy", "Дуа пророка Айюба при болезни", "Prayer of Prophet Ayyub during illness", "Eyyub Peygamberin hastalık duası"),
+    ZikrChoice("Allahumma Rabb an-nas, adhhib al-ba's, ishfi Antash-Shafi, la shifa'a illa shifa'uk, shifa'an la yughadiru saqama", "Şypa dogasy", "Дуа об исцелении", "Prayer for healing", "Şifa duası"),
+    ZikrChoice("Rabbana zalamna anfusana wa in lam taghfir lana wa tarhamna lanakunanna minal-khasirin", "Toba dogasy", "Дуа покаяния", "Prayer of repentance", "Tövbe duası"),
+    ZikrChoice("Rabbighfir li wa li-akhi wa adkhilna fi rahmatika wa Anta arhamur-rahimin", "Musa pygamberiň özi we dogany üçin dogasy", "Дуа Мусы за себя и брата", "Musa's prayer for himself and his brother", "Musa'nın kendisi ve kardeşi için duası"),
+    ZikrChoice("Ya Fattah", "Ýa Fattah — Açýan", "Я Фаттах — Открывающий", "Ya Fattah — The Opener", "Ya Fettah — Açan"),
+    ZikrChoice("Ya Razzaq", "Ýa Razzaq — Rysgal berýän", "Я Раззак — Дарующий удел", "Ya Razzaq — The Provider", "Ya Rezzak — Rızık veren"),
+    ZikrChoice("Ya Ghaniyy", "Ýa Ganiý — Baý, hiç zada mätäç däl", "Я Ганий — Богатый, ни в чём не нуждающийся", "Ya Ghaniyy — The Self-Sufficient", "Ya Ganiyy — Hiçbir şeye muhtaç olmayan"),
+    ZikrChoice("Ya Mughni", "Ýa Mugni — Baý edýän", "Я Мугни — Обогащающий", "Ya Mughni — The Enricher", "Ya Muğni — Zengin eden")
 )
 
 private val AllahNames99 = listOf(
@@ -1425,6 +1439,7 @@ private fun AzanSettingsCard(
 
     var azan by remember { mutableStateOf(preferences.getBoolean("azan_enabled", false)) }
     var vibration by remember { mutableStateOf(preferences.getBoolean("vibration_enabled", true)) }
+    var melodyEnabled by remember { mutableStateOf(preferences.getBoolean("melody_enabled", true)) }
     var selectedAzan by remember {
         mutableStateOf(
             preferences.getString("azan_sound", "Azan 1")
@@ -1492,6 +1507,24 @@ private fun AzanSettingsCard(
                         localized(language, "Wibrasiýa OFF", "Вибрация OFF", "Vibration OFF", "Titreşim OFF")
                 )
             }
+        }
+
+        Button(
+            onClick = {
+                melodyEnabled = !melodyEnabled
+                preferences.edit().putBoolean("melody_enabled", melodyEnabled).apply()
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (melodyEnabled) Gold else SoftGreen,
+                contentColor = DeepGreen
+            )
+        ) {
+            Text(
+                if (melodyEnabled)
+                    localized(language, "Melodiýa ON", "Мелодия ON", "Melody ON", "Melodi ON")
+                else
+                    localized(language, "Melodiýa OFF", "Мелодия OFF", "Melody OFF", "Melodi OFF")
+            )
         }
 
         Text(
@@ -2264,6 +2297,9 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
     var count by remember { mutableIntStateOf(preferences.getInt("tasbih_count", 0)) }
     var target by remember { mutableIntStateOf(preferences.getInt("tasbih_target", 33)) }
     var selectedZikr by remember { mutableStateOf(preferences.getString("tasbih_zikr", "") ?: "") }
+    var clickSoundEnabled by remember {
+        mutableStateOf(preferences.getBoolean("tasbih_click_enabled", true))
+    }
     var chooserOpen by remember { mutableStateOf(false) }
     var chooserSection by remember { mutableIntStateOf(0) }
     var customDraft by remember { mutableStateOf("") }
@@ -2309,13 +2345,26 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                             items(PopularZikrs) { zikr ->
                                 Card(
                                     Modifier.fillMaxWidth().clickable {
-                                        saveZikr(zikr)
+                                        saveZikr(zikr.value)
                                         chooserOpen = false
                                     },
                                     colors = CardDefaults.cardColors(containerColor = SoftGreen),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(zikr, Modifier.padding(12.dp), color = DeepGreen, fontWeight = FontWeight.Medium)
+                                    Column(Modifier.padding(12.dp)) {
+                                        Text(
+                                            zikr.label(language),
+                                            color = DeepGreen,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        if (language != AppLanguage.EN) {
+                                            Text(
+                                                zikr.value,
+                                                color = Green,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2388,11 +2437,36 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
         }
 
         Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { saveCount(0) },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text.reset)
+            Button(
+                onClick = { saveCount(0) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Green)
+            ) {
+                Text(text.reset)
+            }
+
+            Button(
+                onClick = {
+                    clickSoundEnabled = !clickSoundEnabled
+                    preferences.edit()
+                        .putBoolean("tasbih_click_enabled", clickSoundEnabled)
+                        .apply()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (clickSoundEnabled) Gold else SoftGreen,
+                    contentColor = DeepGreen
+                )
+            ) {
+                Text(
+                    if (clickSoundEnabled)
+                        localized(language, "🔊 Şelçk ON", "🔊 Щелчок ON", "🔊 Click ON", "🔊 Tık ON")
+                    else
+                        localized(language, "🔇 Şelçk OFF", "🔇 Щелчок OFF", "🔇 Click OFF", "🔇 Tık OFF")
+                )
+            }
         }
 
         Spacer(Modifier.height(10.dp))
@@ -2432,13 +2506,23 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
                             Text(labels.chooseZikr)
                         }
                     } else {
+                        val selectedChoice = PopularZikrs.firstOrNull { it.value == selectedZikr }
                         Text(
-                            selectedZikr,
+                            selectedChoice?.label(language) ?: selectedZikr,
                             color = Gold,
                             fontSize = 21.sp,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center
                         )
+                        if (selectedChoice != null && language != AppLanguage.EN) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                selectedChoice.value,
+                                color = Color.White.copy(alpha = 0.78f),
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                         Spacer(Modifier.height(10.dp))
                         Button(
                             onClick = {
