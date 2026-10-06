@@ -8,23 +8,22 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
-    <!-- Location is used only to select the nearest city for prayer times. -->
-
+    <!-- This app has a distinct applicationId; it does not replace the old app. -->
     <application
         android:allowBackup="true"
-        android:label="NAMAZ WAGTY Zikir &amp; Dogalar"
+        android:label="NAMAZ WAGTY Solar"
         android:icon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <service
-            android:name=".AzanPlaybackService"
+            android:name="com.msterjime.zikirdua.AzanPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
         <receiver
-            android:name=".PrayerReminderReceiver"
+            android:name="com.msterjime.zikirdua.PrayerReminderReceiver"
             android:exported="false" />
         <receiver
-            android:name=".PrayerBootReceiver"
+            android:name="com.msterjime.zikirdua.PrayerBootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -32,7 +31,7 @@
             </intent-filter>
         </receiver>
         <activity
-            android:name=".MainActivity"
+            android:name="com.msterjime.zikirdua.MainActivity"
             android:screenOrientation="unspecified"
             android:exported="true">
             <intent-filter>
