@@ -151,7 +151,7 @@ raw = zlib.decompress(base64.b64decode(m.group(1)))
 assert hashlib.sha256(raw).hexdigest() == '76cc334fe833469f0360493c06839b951809ba2dc59ae4cf209a0c1fe3712497'
 # java.util.Base64 is available at minSdk 26, and permits real JVM unit testing.
 t = t.replace('import android.util.Base64', 'import java.util.Base64')
-t, n = re.subn(r'Base64\.decode\(COMPRESSED_DATA,\s*Base64\.DEFAULT\)', 'Base64.getDecoder().decode(COMPRESSED_DATA)', t)
+t, n = re.subn(r'Base64\.decode\(COMPRESSED_DATA,\s*Base64\.(?:DEFAULT|NO_WRAP)\)', 'Base64.getDecoder().decode(COMPRESSED_DATA)', t)
 assert n == 1, 'Base64 call did not match'
 schedule_path.write_text(t, encoding='utf-8')
 

@@ -78,6 +78,7 @@ internal fun reschedulePrayerEvents(
     repeat(14) { dayOffset ->
         val date = LocalDate.now(ReminderZone).plusDays(dayOffset.toLong())
         val times = calculatePrayerTimesWithContext(context, date, city)
+        val flaggedKeys = flaggedPrayerScheduleKeys(context, date, city)
         val prayers = listOf(
             labels.fajr to times.fajr,
             labels.dhuhr to times.dhuhr,
@@ -88,6 +89,7 @@ internal fun reschedulePrayerEvents(
 
         prayers.forEachIndexed { prayerIndex, (prayerName, prayerTime) ->
             if (!preferences.getBoolean(NotificationKeys[prayerIndex], true)) return@forEachIndexed
+            if (NotificationKeys[prayerIndex] in flaggedKeys) return@forEachIndexed
 
             val exactTime = ZonedDateTime.of(date, prayerTime, ReminderZone)
             if (exactTime.isAfter(now)) {

@@ -1,6 +1,6 @@
 package com.msterjime.zikirdua
 
-import android.util.Base64
+import java.util.Base64
 import java.io.ByteArrayInputStream
 import java.time.LocalDate
 import java.time.LocalTime
@@ -24,7 +24,7 @@ internal object MuftiateSchedule {
 
     private val data: ByteArray? by lazy {
         runCatching {
-            val compressed = Base64.decode(COMPRESSED_DATA, Base64.NO_WRAP)
+            val compressed = Base64.getDecoder().decode(COMPRESSED_DATA)
             InflaterInputStream(ByteArrayInputStream(compressed)).use { stream ->
                 stream.readBytes().takeIf { it.size == EXPECTED_SIZE }
                     ?: error("Invalid Muftiate timetable size")

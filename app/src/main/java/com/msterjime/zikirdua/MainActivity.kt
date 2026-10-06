@@ -334,7 +334,7 @@ private fun savePrayerCalculationMode(
 private fun prayerCalculationModeLabel(context: Context, language: AppLanguage): String {
     return when (getPrayerCalculationMode(context)) {
         PrayerCalculationMode.MUFTIATE_TKM ->
-            localized(language, "Müftülik TKM", "Муфтият ТКМ", "Muftiate TKM", "Müftülük TKM")
+            localized(language, "Gün doguşy / ýaşmagy", "Восход / закат", "Sunrise / sunset", "Güneş doğuş / batış")
         PrayerCalculationMode.OFFLINE_BACKUP ->
             localized(language, "Oflaýn hasaplama", "Офлайн расчёт", "Offline calculation", "Çevrimdışı hesaplama")
     }
@@ -395,10 +395,10 @@ private fun prayerParametersLabel(context: Context, language: AppLanguage): Stri
     return when (getPrayerCalculationMode(context)) {
         PrayerCalculationMode.MUFTIATE_TKM -> localized(
             language,
-            "Takyk Müftülik tertibi • sebit boýunça tablisa",
-            "Точное расписание Муфтията • таблица по региону",
-            "Exact Muftiate timetable • regional table",
-            "Kesin Müftülük takvimi • bölgesel tablo"
+            "Sebit tablisasy + şäheriň gün doguş / ýaşma tapawudy. Öýle üýtgemeýär.",
+            "Региональная таблица + разница восхода/заката для города. Öýle фиксирован.",
+            "Regional table + city sunrise/sunset differences. Dhuhr stays fixed.",
+            "Bölgesel tablo + şehrin doğuş/batış farkı. Öğle sabit kalır."
         )
         PrayerCalculationMode.OFFLINE_BACKUP -> {
             val p = getPrayerCalculationParameters(context)
@@ -545,8 +545,7 @@ private fun calculateMuftiateTKMPrayerTimes(
     date: LocalDate,
     city: City
 ): PrayerTimes {
-    return MuftiateSchedule.prayerTimes(date, city)
-        ?: calculatePrayerTimes(date, city)
+    return CitySolarSchedule.forCity(date, city).times
 }
 
 
@@ -555,7 +554,7 @@ internal fun calculatePrayerTimesWithParameters(
     date: LocalDate,
     city: City
 ): PrayerTimes {
-    return calculatePrayerTimes(date, city, context)
+    return calculatePrayerTimesWithContext(context, date, city)
 }
 
 internal fun calculatePrayerTimesByMode(
@@ -563,12 +562,7 @@ internal fun calculatePrayerTimesByMode(
     date: LocalDate,
     city: City
 ): PrayerTimes {
-    return when (getPrayerCalculationMode(context)) {
-        PrayerCalculationMode.MUFTIATE_TKM ->
-            calculateMuftiateTKMPrayerTimes(date, city)
-        PrayerCalculationMode.OFFLINE_BACKUP ->
-            calculatePrayerTimes(date, city, context)
-    }
+    return calculatePrayerTimesWithContext(context, date, city)
 }
 
 private fun asrFactor(context: Context): Double {
@@ -1321,10 +1315,10 @@ private fun HomeScreen(
             Text(
                 localized(
                     language,
-                    "Zikir we dogalar • v1.2",
-                    "Зикр и дуа • v1.2",
-                    "Dhikr & Duas • v1.2",
-                    "Zikir ve dualar • v1.2"
+                    "Zikir we dogalar • v2.1 Solar",
+                    "Зикр и дуа • v2.1 Solar",
+                    "Dhikr & Duas • v2.1 Solar",
+                    "Zikir ve dualar • v2.1 Solar"
                 ),
                 fontSize = 14.sp,
                 color = Green
@@ -1396,6 +1390,7 @@ private fun HomeScreen(
                 }
             }
         }
+        item { CityScheduleSourceInfo(city, language) }
         item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
@@ -1728,7 +1723,7 @@ private fun PrayerCalculationSettingsCard(
             color = DeepGreen
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
                     mode = PrayerCalculationMode.MUFTIATE_TKM
@@ -1740,7 +1735,7 @@ private fun PrayerCalculationSettingsCard(
                     contentColor = DeepGreen
                 )
             ) {
-                Text(localized(language, "Müftülik TKM", "Муфтият ТКМ", "Muftiate TKM", "Müftülük TKM"))
+                Text(localized(language, "Gün doguşy / ýaşmagy", "Восход / закат", "Sunrise / sunset", "Güneş doğuş / batış"))
             }
 
             Button(
@@ -1787,10 +1782,10 @@ private fun PrayerParametersCard(language: AppLanguage, settingsRevision: Int) {
             when (getPrayerCalculationMode(context)) {
                 PrayerCalculationMode.MUFTIATE_TKM -> localized(
                     language,
-                    "Asyl Namaz wagty maglumat bazasyndaky sebit tertibi ulanylýar.",
-                    "Используется региональное расписание из исходной базы Namaz wagty.",
-                    "The regional timetable from the original Namaz wagty database is used.",
-                    "Orijinal Namaz wagty veritabanındaki bölgesel takvim kullanılıyor."
+                    "Çeşme: Namaz wagty APK. Şäher düzedişi hasaplama modelidir; ýerli tertip bilen barlaň.",
+                    "Источник: база Namaz wagty APK. Поправки по городам расчётные, не утверждённый местный календарь.",
+                    "Source: Namaz wagty APK. City adjustments are estimates, not an approved local calendar.",
+                    "Kaynak: Namaz wagty APK. Şehir düzeltmeleri hesaplamadır; onaylı yerel takvim değildir."
                 )
                 PrayerCalculationMode.OFFLINE_BACKUP -> localized(
                     language,
@@ -2771,5 +2766,72 @@ private fun DhikrDetailScreen(
                 }
             }
         }
+    }
+}
+
+
+// CITY_SOLAR_INTEGRATION_V1
+internal fun flaggedPrayerScheduleKeys(context: Context, date: LocalDate, city: City): Set<String> =
+    if (getPrayerCalculationMode(context) == PrayerCalculationMode.MUFTIATE_TKM) {
+        CitySolarSchedule.forCity(date, city).flaggedKeys
+    } else emptySet()
+
+@Composable
+private fun CityScheduleSourceInfo(city: City, language: AppLanguage) {
+    val context = LocalContext.current
+    if (getPrayerCalculationMode(context) != PrayerCalculationMode.MUFTIATE_TKM) return
+    val date = LocalDate.now(TurkmenistanZone)
+    val report = remember(city, date) { CitySolarSchedule.forCity(date, city) }
+    var expanded by remember { mutableStateOf(false) }
+    val warning = report.flaggedKeys.isNotEmpty()
+    val short = if (report.isReferencePoint) {
+        localized(language, "Namaz wagty tablisasy", "Таблица Namaz wagty", "Namaz wagty table", "Namaz wagty tablosu")
+    } else {
+        localized(language, "Şäher boýunça hasaplama", "Расчёт по городу", "City-adjusted schedule", "Şehre göre hesaplama")
+    }
+    Text(
+        (if (warning) "⚠ " else "ⓘ ") + short + " · " +
+            localized(language, "Jikme-jik", "Подробнее", "Details", "Ayrıntılar"),
+        modifier = Modifier.fillMaxWidth().clickable { expanded = true }.padding(vertical = 6.dp),
+        color = Green,
+        fontSize = 12.sp
+    )
+    if (expanded) {
+        val morning = java.lang.String.format(java.util.Locale.ROOT, "%+.2f", report.morningShift)
+        val evening = java.lang.String.format(java.util.Locale.ROOT, "%+.2f", report.eveningShift)
+        val detail = localized(
+            language,
+            "Çeşme: Namaz wagty APK-daky sebit tablisasy. Tablisada ýyl we resmi tassyklama görkezilmeýär.\n\nŞäher: ${city.name}\nSene: $date\nÇak edilýän daýanç şäher: ${report.anchor.name}\nIrdenki tapawut: $morning min\nAgşamky tapawut: $evening min\nÖýle: ${report.times.dhuhr} (üýtgemeýär).\n\nŞäher düzedişi hasaplama modelidir. Ýerli tertip bilen barlaň. Ertir bu modelde oraza başlamak wagty diýip görkezilmeýär.",
+            "Источник: региональная таблица из Namaz wagty APK. В таблице не указаны год и официальное утверждение.\n\nГород: ${city.name}\nДата: $date\nПредполагаемый опорный город: ${report.anchor.name}\nУтренняя поправка: $morning мин\nВечерняя поправка: $evening мин\nÖýle: ${report.times.dhuhr} (фиксированно).\n\nПоправки по городам — расчётная модель. Сверяйте с местным расписанием. Ertir здесь не обозначает подтверждённую границу начала поста.",
+            "Source: regional timetable from Namaz wagty APK. The table has no year or approval metadata.\n\nCity: ${city.name}\nDate: $date\nAssumed reference city: ${report.anchor.name}\nMorning shift: $morning min\nEvening shift: $evening min\nDhuhr: ${report.times.dhuhr} (fixed).\n\nCity adjustments are a model. Check your local calendar. Ertir is not presented as a verified fasting start time.",
+            "Kaynak: Namaz wagty APK bölge tablosu. Tabloda yıl veya onay bilgisi yok.\n\nŞehir: ${city.name}\nTarih: $date\nVarsayılan referans şehir: ${report.anchor.name}\nSabah farkı: $morning dk\nAkşam farkı: $evening dk\nÖğle: ${report.times.dhuhr} (sabit).\n\nŞehir düzeltmeleri bir modeldir. Yerel takvimle kontrol edin. Ertir, doğrulanmış oruç başlangıcı olarak sunulmaz."
+        )
+        AlertDialog(
+            onDismissRequest = { expanded = false },
+            title = { Text(short) },
+            text = {
+                LazyColumn(Modifier.height(360.dp)) {
+                    item { Text(detail) }
+                    if (warning) {
+                        item {
+                            Text(
+                                localized(language,
+                                    "⚠ Çeşmede şübheli ýazgy bar. Degişli bildiriş wagtlaýyn goýulmaýar. Ýerli tertip bilen barlaň.",
+                                    "⚠ В исходной строке обнаружена аномалия. Уведомление для сомнительного времени не назначается. Проверьте местный календарь.",
+                                    "⚠ Source row contains an anomaly. Alerts for the flagged time are not scheduled. Check the local calendar.",
+                                    "⚠ Kaynak satırda anormallik var. Şüpheli vakit için bildirim planlanmaz. Yerel takvimi kontrol edin."),
+                                modifier = Modifier.padding(top = 14.dp), color = Green
+                            )
+                            Text(report.flaggedKeys.joinToString(", "), fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { expanded = false }) {
+                    Text(localized(language, "Ýap", "Закрыть", "Close", "Kapat"))
+                }
+            }
+        )
     }
 }
