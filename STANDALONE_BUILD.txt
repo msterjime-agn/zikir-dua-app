@@ -1,0 +1,6 @@
+Application ID: com.msterjime.namazwagty.solar
+Version: 2.2 (2200)
+Independent installation. Does not replace or erase com.msterjime.zikirdua.
+CitySolarSchedule and MuftiateSchedule preserved byte-for-byte.
+Two native widgets; same calculation method and city as app.
+Private signing keys must NEVER be committed to a public repository.

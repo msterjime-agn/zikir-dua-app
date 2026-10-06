@@ -1,0 +1,9 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical" android:padding="12dp" android:background="@drawable/widget_prayer_dark">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+ <TextView android:id="@+id/widget_city" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="NAMAZ WAGTY" android:textSize="14sp" android:textColor="#FFFFFF" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+ <TextView android:id="@+id/widget_next" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="12sp" android:textColor="#E8CD85" android:maxLines="1" android:ellipsize="end"/>
+ <TextView android:id="@+id/widget_meta" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="10sp" android:textColor="#D1E4DB" android:maxLines="1" android:ellipsize="end"/>
+</LinearLayout>
+<TextView android:id="@+id/widget_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:text="--:--" android:textSize="24sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+<TextView android:id="@+id/widget_refresh" android:layout_width="48dp" android:layout_height="48dp" android:text="↻" android:textSize="27sp" android:textColor="#E8CD85" android:gravity="center" android:contentDescription="Refresh"/>
+</LinearLayout>

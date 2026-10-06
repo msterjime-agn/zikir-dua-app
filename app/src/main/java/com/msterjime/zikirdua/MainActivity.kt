@@ -933,7 +933,7 @@ private fun notificationSettingsSubtitle(language: AppLanguage): String = when (
 
 private fun tabTitle(tab: AppTab, text: UiText, language: AppLanguage): String = when (tab) {
     AppTab.HOME -> text.home
-    AppTab.PRAYER -> notificationSettingsTitle(language)
+    AppTab.PRAYER -> localized(language, "Sazlamalar", "Настройки", "Settings", "Ayarlar")
     AppTab.DHIKR -> text.dhikr
     AppTab.TASBIH -> text.tasbih
 }
@@ -1167,6 +1167,7 @@ LaunchedEffect("auto_location") {
     val countdown = countdownText(now, nextPrayer)
 
     LaunchedEffect(selectedCity.name, language.code, now.toLocalDate(), prayerSettingsRevision) {
+        PrayerWidgets.updateAll(context)
         reschedulePrayerEvents(
             context = context,
             city = selectedCity,
@@ -1315,10 +1316,10 @@ private fun HomeScreen(
             Text(
                 localized(
                     language,
-                    "Zikir we dogalar • v2.1 Solar",
-                    "Зикр и дуа • v2.1 Solar",
-                    "Dhikr & Duas • v2.1 Solar",
-                    "Zikir ve dualar • v2.1 Solar"
+                    "Zikir we dogalar • v2.2",
+                    "Зикр и дуа • v2.2",
+                    "Dhikr & Duas • v2.2",
+                    "Zikir ve dualar • v2.2"
                 ),
                 fontSize = 14.sp,
                 color = Green
@@ -1422,52 +1423,26 @@ private fun QuickAction(symbol: String, title: String, subtitle: String, onClick
 
 
 @Composable
-private fun PrayerNotificationCard(
-    language: AppLanguage,
-    onSettingsChanged: () -> Unit
-) {
+private fun PrayerNotificationCard(language: AppLanguage, onSettingsChanged: () -> Unit) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
-
-    var selectedMinutes by remember {
-        mutableIntStateOf(preferences.getInt("reminder_minutes", 10))
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            localized(language, "🔔 Bildirişler", "🔔 Уведомления", "🔔 Notifications", "🔔 Bildirimler"),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = DeepGreen
-        )
-        Text(
-            localized(
-                language,
-                "Öňünden duýdurmak",
-                "Напомнить заранее",
-                "Remind before prayer",
-                "Önceden hatırlat"
-            ),
-            color = Green
-        )
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(listOf(5, 10, 15, 30)) { minute ->
-                Button(
-                    onClick = {
+    var selectedMinutes by remember { mutableIntStateOf(preferences.getInt("reminder_minutes", 10)) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(localized(language, "Bildirişler", "Уведомления", "Notifications", "Bildirimler"),
+            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+        Text(localized(language, "Öňünden duýdurmak", "Напомнить заранее", "Remind before prayer", "Önceden hatırlat"), color = Green)
+        listOf(listOf(5, 10), listOf(15, 30)).forEach { minutes ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                minutes.forEach { minute ->
+                    Button(onClick = {
                         selectedMinutes = minute
                         preferences.edit().putInt("reminder_minutes", minute).apply()
                         onSettingsChanged()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedMinutes == minute) Gold else SoftGreen,
-                        contentColor = DeepGreen
-                    )
-                ) {
-                    Text(minute.toString() + " min")
+                    }, modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (selectedMinutes == minute) Gold else Color.White,
+                            contentColor = DeepGreen)) {
+                        Text(minute.toString() + localized(language, " min", " мин", " min", " dk"), maxLines = 1, softWrap = false)
+                    }
                 }
             }
         }
@@ -1843,6 +1818,8 @@ private fun NotificationSettingsScreen(
                         onPrayerSettingsChanged()
                     }
 
+                    PrayerWidgetSettingsCard(language)
+                    Spacer(Modifier.height(12.dp))
                     PrayerNotificationCard(language, refreshSchedules)
                     AzanSettingsCard(language, refreshSchedules)
                     PrayerCalculationSettingsCard(language, refreshSchedules)
@@ -2835,3 +2812,5 @@ private fun CityScheduleSourceInfo(city: City, language: AppLanguage) {
         )
     }
 }
+
+// STANDALONE_22_INTEGRATED

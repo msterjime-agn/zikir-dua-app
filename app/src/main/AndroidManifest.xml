@@ -12,19 +12,19 @@
 
     <application
         android:allowBackup="true"
-        android:label="NAMAZ WAGTY Zikir &amp; Dogalar"
+        android:label="@string/standalone_app_name"
         android:icon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <service
-            android:name=".AzanPlaybackService"
+            android:name="com.msterjime.zikirdua.AzanPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
         <receiver
-            android:name=".PrayerReminderReceiver"
+            android:name="com.msterjime.zikirdua.PrayerReminderReceiver"
             android:exported="false" />
         <receiver
-            android:name=".PrayerBootReceiver"
+            android:name="com.msterjime.zikirdua.PrayerBootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -32,7 +32,7 @@
             </intent-filter>
         </receiver>
         <activity
-            android:name=".MainActivity"
+            android:name="com.msterjime.zikirdua.MainActivity"
             android:screenOrientation="unspecified"
             android:exported="true">
             <intent-filter>
@@ -40,5 +40,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver android:name="com.msterjime.zikirdua.CompactPrayerWidget" android:exported="false" android:label="@string/widget_compact_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_prayer_compact_info" />
+        </receiver>
+        <receiver android:name="com.msterjime.zikirdua.FullPrayerWidget" android:exported="false" android:label="@string/widget_full_title">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_prayer_full_info" />
+        </receiver>
     </application>
 </manifest>
