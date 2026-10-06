@@ -1,0 +1,107 @@
+name: Build standalone NAMAZ WAGTY 2.2
+on:
+  push:
+    branches: ['build/standalone-2.2-20261006']
+    paths: ['.github/workflows/build-standalone-22.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/standalone-2.2-20261006
+      - name: Integrate standalone identity and widgets
+        run: |
+          python3 scripts/integrate_standalone_22.py
+          python3 scripts/finalize_widget_layouts.py
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app STANDALONE_BUILD.txt
+          if ! git diff --cached --quiet; then
+            git commit -m 'Integrate independent 2.2 app identity and native widgets without altering prayer calculations'
+            git push origin HEAD:build/standalone-2.2-20261006
+          fi
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Clean compile, calculations tests and release APK
+        run: gradle clean testDebugUnitTest assembleRelease assembleDebug assembleDebugAndroidTest --stacktrace
+      - name: Package unsigned release and reproducible sources
+        run: |
+          mkdir -p delivery
+          cp app/build/outputs/apk/release/app-release-unsigned.apk delivery/NAMAZ_WAGTY_2.2_unsigned.apk
+          git archive --format=zip -o delivery/NAMAZ_WAGTY_2.2_source.zip HEAD
+          git rev-parse HEAD > delivery/COMMIT.txt
+          cp -r app/build/reports/city-solar delivery/calculation-tests
+          cp -r app/build/test-results/testDebugUnitTest delivery/unit-tests
+          cp STANDALONE_BUILD.txt delivery/
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          cp "$(dirname "$TOOLS")/lib/apksigner.jar" delivery/apksigner.jar
+          AAPT="$(dirname "$TOOLS")/aapt"
+          "$AAPT" dump badging delivery/NAMAZ_WAGTY_2.2_unsigned.apk > delivery/APK_METADATA.txt
+          "$AAPT" dump xmltree delivery/NAMAZ_WAGTY_2.2_unsigned.apk AndroidManifest.xml > delivery/MANIFEST.txt
+      - name: Retrieve old APK for parallel-install test
+        uses: actions/download-artifact@v4
+        with:
+          name: namaz-wagty-2.1-solar
+          run-id: 37440473833
+          github-token: ${{ github.token }}
+          path: old-version
+      - name: Android 15 emulator setup
+        run: |
+          sudo chmod 666 /dev/kvm
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" 'system-images;android-35;google_apis;x86_64' 'emulator' 'platform-tools'
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n namazSmoke -k 'system-images;android-35;google_apis;x86_64' --force
+          nohup "$ANDROID_HOME/emulator/emulator" -avd namazSmoke -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -memory 2048 -cores 2 > /tmp/namaz-emulator.log 2>&1 &
+          timeout 180 adb wait-for-device
+          for i in $(seq 1 180); do
+            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = '1' ]; then break; fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = '1'
+          adb shell input keyevent 82
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+      - name: Install both apps and smoke-test launch and widgets
+        run: |
+          set -o pipefail
+          adb install old-version/NAMAZ_WAGTY_2.1_Solar.apk | tee delivery/OLD_INSTALL.txt
+          adb install app/build/outputs/apk/debug/app-debug.apk | tee delivery/NEW_INSTALL.txt
+          adb shell pm list packages | grep -E 'com.msterjime.(zikirdua|namazwagty.solar)' | tee delivery/COEXISTENCE.txt
+          grep -q 'com.msterjime.zikirdua' delivery/COEXISTENCE.txt
+          grep -q 'com.msterjime.namazwagty.solar' delivery/COEXISTENCE.txt
+          gradle connectedDebugAndroidTest --stacktrace
+          adb pull /sdcard/Android/data/com.msterjime.namazwagty.solar/files/smoke delivery/screenshots
+          cp -r app/build/outputs/androidTest-results delivery/device-tests
+          adb logcat -d -b crash > delivery/CRASH_LOG.txt
+      - name: Upload complete standalone package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: namaz-wagty-2.2-standalone
+          path: delivery/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-22-diagnostics
+          path: |
+            app/build/reports/
+            app/build/outputs/androidTest-results/
+            /tmp/namaz-emulator.log
+          if-no-files-found: warn
