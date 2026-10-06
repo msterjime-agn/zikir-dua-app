@@ -34,8 +34,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+          cache-read-only: false
       - name: Clean compile, calculations tests and release APK
-        run: gradle clean testDebugUnitTest assembleRelease assembleDebug assembleDebugAndroidTest --stacktrace
+        run: |
+          gradle clean testDebugUnitTest assembleRelease --stacktrace
+          gradle assembleDebug assembleDebugAndroidTest --stacktrace
       - name: Package unsigned release and reproducible sources
         run: |
           mkdir -p delivery
@@ -83,10 +86,23 @@ jobs:
           adb shell pm list packages | grep -E 'com.msterjime.(zikirdua|namazwagty.solar)' | tee delivery/COEXISTENCE.txt
           grep -q 'com.msterjime.zikirdua' delivery/COEXISTENCE.txt
           grep -q 'com.msterjime.namazwagty.solar' delivery/COEXISTENCE.txt
-          gradle connectedDebugAndroidTest --stacktrace
+          adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          timeout 240 adb shell am instrument -w -r com.msterjime.namazwagty.solar.test/androidx.test.runner.AndroidJUnitRunner | tee delivery/DEVICE_TESTS.txt
+          grep -q 'OK (3 tests)' delivery/DEVICE_TESTS.txt
           adb pull /sdcard/Android/data/com.msterjime.namazwagty.solar/files/smoke delivery/screenshots
-          cp -r app/build/outputs/androidTest-results delivery/device-tests
           adb logcat -d -b crash > delivery/CRASH_LOG.txt
+      - name: Smoke-test release bytecode with disposable CI certificate
+        run: |
+          set -o pipefail
+          java -jar delivery/apksigner.jar sign --ks "$HOME/.android/debug.keystore" --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out /tmp/release-smoke.apk delivery/NAMAZ_WAGTY_2.2_unsigned.apk
+          adb install -r /tmp/release-smoke.apk | tee delivery/RELEASE_INSTALL.txt
+          adb logcat -c
+          adb shell am start -W -n com.msterjime.namazwagty.solar/com.msterjime.zikirdua.MainActivity | tee delivery/RELEASE_LAUNCH.txt
+          sleep 3
+          adb shell pidof com.msterjime.namazwagty.solar | tee delivery/RELEASE_PID.txt
+          adb logcat -d -b crash > delivery/RELEASE_CRASH_LOG.txt
+          test ! -s delivery/RELEASE_CRASH_LOG.txt
+          adb exec-out screencap -p > delivery/release-startup.png
       - name: Upload complete standalone package
         if: always()
         uses: actions/upload-artifact@v4
