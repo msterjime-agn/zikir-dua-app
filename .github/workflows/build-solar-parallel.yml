@@ -1,0 +1,94 @@
+name: Build Solar side-by-side
+
+on:
+  push:
+    branches: ['build/solar-parallel-20261006']
+    paths:
+      - '.github/workflows/build-solar-parallel.yml'
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout isolated Solar source
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Verify package separation and build release
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path('app/build.gradle').read_text()
+          assert 'applicationId "com.msterjime.zikirdua.solar"' in s
+          assert "namespace 'com.msterjime.zikirdua'" in s
+          manifest = Path('app/src/main/AndroidManifest.xml').read_text()
+          assert 'android:label="NAMAZ WAGTY Solar"' in manifest
+          assert 'android:sharedUserId' not in manifest
+          PY
+          gradle clean testReleaseUnitTest assembleRelease --stacktrace
+
+      - name: Inspect installation metadata and package outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p delivery/tooling
+          cp app/build/outputs/apk/release/app-release-unsigned.apk delivery/NAMAZ_WAGTY_2.1.1_Solar_UNSIGNED.apk
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$TOOLS/aapt" dump badging delivery/NAMAZ_WAGTY_2.1.1_Solar_UNSIGNED.apk > delivery/apk-metadata.txt
+          "$TOOLS/aapt" dump xmltree delivery/NAMAZ_WAGTY_2.1.1_Solar_UNSIGNED.apk AndroidManifest.xml > delivery/manifest-tree.txt
+          "$TOOLS/zipalign" -c -v 4 delivery/NAMAZ_WAGTY_2.1.1_Solar_UNSIGNED.apk > delivery/alignment.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          b = Path('delivery/apk-metadata.txt').read_text()
+          assert "package: name='com.msterjime.zikirdua.solar'" in b
+          assert "versionCode='2102'" in b
+          assert "versionName='2.1.1-solar'" in b
+          assert "launchable-activity: name='com.msterjime.zikirdua.MainActivity'" in b
+          m = Path('delivery/manifest-tree.txt').read_text()
+          assert 'com.msterjime.zikirdua.solar.androidx-startup' in m
+          assert 'com.msterjime.zikirdua.androidx-startup' not in m
+          assert 'sharedUserId' not in m
+          assert 'android:debuggable(0x0101000f)=(type 0x12)0xffffffff' not in m
+          PY
+          cp "$TOOLS/lib/apksigner.jar" delivery/tooling/apksigner.jar
+          git archive --format=zip -o delivery/NAMAZ_WAGTY_2.1.1_Solar_source.zip HEAD
+          cp -r app/build/reports/city-solar delivery/calculation-tests
+          cp -r app/build/test-results/testReleaseUnitTest delivery/unit-tests
+          git rev-parse HEAD > delivery/COMMIT.txt
+          sha256sum delivery/NAMAZ_WAGTY_2.1.1_Solar_UNSIGNED.apk > delivery/UNSIGNED_SHA256.txt
+          printf '%s\n' 'This is a separate application: com.msterjime.zikirdua.solar.' 'The old app and its private data are not overwritten.' 'This CI artifact is UNSIGNED and must be signed outside CI before installation.' 'No private signing key is generated, stored or uploaded in this workflow.' 'Use the same owner-held signing key for every subsequent Solar update.' > delivery/README_BUILD.txt
+
+      - name: Upload release for private signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: namaz-wagty-solar-parallel-unsigned
+          path: delivery/
+          if-no-files-found: error
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: solar-parallel-diagnostics
+          path: |
+            app/build/reports/
+            app/build/test-results/
+            delivery/apk-metadata.txt
+            delivery/manifest-tree.txt
+          if-no-files-found: warn
