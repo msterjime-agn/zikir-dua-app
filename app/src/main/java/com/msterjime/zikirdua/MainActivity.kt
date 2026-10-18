@@ -1373,10 +1373,10 @@ private fun HomeScreen(
                         Text(
                             localized(
                                 language,
-                                "Zikir we dogalar • v1.3",
-                                "Зикр и дуа • v1.3",
-                                "Dhikr & Duas • v1.3",
-                                "Zikir ve dualar • v1.3"
+                                "Zikir we dogalar • v1.4",
+                                "Зикр и дуа • v1.4",
+                                "Dhikr & Duas • v1.4",
+                                "Zikir ve dualar • v1.4"
                             ),
                             fontSize = 14.sp,
                             color = Color.White.copy(alpha = 0.78f)
@@ -1543,6 +1543,34 @@ private fun PrayerNotificationCard(
     var selectedMinutes by remember {
         mutableIntStateOf(preferences.getInt("reminder_minutes", 10))
     }
+    var screenNotification by remember {
+        mutableStateOf(preferences.getBoolean("prayer_time_notification", false))
+    }
+    var notificationSound by remember {
+        mutableStateOf(preferences.getBoolean("notification_sound_enabled", true))
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        screenNotification = granted
+        preferences.edit().putBoolean("prayer_time_notification", granted).apply()
+        onSettingsChanged()
+    }
+
+    fun setScreenNotification(enabled: Boolean) {
+        if (
+            enabled &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            screenNotification = enabled
+            preferences.edit().putBoolean("prayer_time_notification", enabled).apply()
+            onSettingsChanged()
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -1551,6 +1579,68 @@ private fun PrayerNotificationCard(
             fontWeight = FontWeight.Bold,
             color = DeepGreen
         )
+
+        Text(
+            localized(
+                language,
+                "Ekranda görkezmek we bildiriş sesini aýratyn sazlap bolýar.",
+                "Показ на экране и звук уведомления настраиваются отдельно.",
+                "On-screen alerts and notification sound can be controlled separately.",
+                "Ekran bildirimi ve bildirim sesi ayrı ayrı ayarlanabilir."
+            ),
+            color = Green,
+            fontSize = 13.sp
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { setScreenNotification(!screenNotification) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (screenNotification) Gold else Color.White,
+                    contentColor = DeepGreen
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (screenNotification) Gold else Green.copy(alpha = 0.30f)
+                )
+            ) {
+                Text(
+                    if (screenNotification)
+                        localized(language, "📱 Ekran ON", "📱 Экран ON", "📱 Screen ON", "📱 Ekran ON")
+                    else
+                        localized(language, "📱 Ekran OFF", "📱 Экран OFF", "📱 Screen OFF", "📱 Ekran OFF")
+                )
+            }
+
+            Button(
+                onClick = {
+                    notificationSound = !notificationSound
+                    preferences.edit()
+                        .putBoolean("notification_sound_enabled", notificationSound)
+                        .apply()
+                    onSettingsChanged()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (notificationSound) Gold else Color.White,
+                    contentColor = DeepGreen
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (notificationSound) Gold else Green.copy(alpha = 0.30f)
+                )
+            ) {
+                Text(
+                    if (notificationSound)
+                        localized(language, "🔊 Ses ON", "🔊 Звук ON", "🔊 Sound ON", "🔊 Ses ON")
+                    else
+                        localized(language, "🔇 Ses OFF", "🔇 Звук OFF", "🔇 Sound OFF", "🔇 Ses OFF")
+                )
+            }
+        }
+
         Text(
             localized(
                 language,
@@ -1567,6 +1657,7 @@ private fun PrayerNotificationCard(
             modifier = Modifier.fillMaxWidth()
         ) {
             items(listOf(5, 10, 15, 30)) { minute ->
+                val active = selectedMinutes == minute
                 Button(
                     onClick = {
                         selectedMinutes = minute
@@ -1574,8 +1665,12 @@ private fun PrayerNotificationCard(
                         onSettingsChanged()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedMinutes == minute) Gold else SoftGreen,
+                        containerColor = if (active) Gold else Color.White,
                         contentColor = DeepGreen
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        if (active) Gold else Green.copy(alpha = 0.28f)
                     )
                 ) {
                     Text(minute.toString() + " min")
@@ -1647,7 +1742,7 @@ private fun AzanSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (azan) Gold else SoftGreen,
+                    containerColor = if (azan) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1661,7 +1756,7 @@ private fun AzanSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (vibration) Gold else SoftGreen,
+                    containerColor = if (vibration) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1680,7 +1775,7 @@ private fun AzanSettingsCard(
                 preferences.edit().putBoolean("melody_enabled", melodyEnabled).apply()
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (melodyEnabled) Gold else SoftGreen,
+                containerColor = if (melodyEnabled) Gold else Color.White,
                 contentColor = DeepGreen
             )
         ) {
@@ -1705,7 +1800,7 @@ private fun AzanSettingsCard(
                         preferences.edit().putString("azan_sound", sound).apply()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedAzan == sound) Gold else SoftGreen,
+                        containerColor = if (selectedAzan == sound) Gold else Color.White,
                         contentColor = DeepGreen
                     )
                 ) {
@@ -1789,7 +1884,7 @@ private fun AsrCalculationSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (method == AsrCalculationMethod.HANAFI) Gold else SoftGreen,
+                    containerColor = if (method == AsrCalculationMethod.HANAFI) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1803,7 +1898,7 @@ private fun AsrCalculationSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (method == AsrCalculationMethod.SHAFII) Gold else SoftGreen,
+                    containerColor = if (method == AsrCalculationMethod.SHAFII) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1842,7 +1937,7 @@ private fun PrayerCalculationSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (mode == PrayerCalculationMode.MUFTIATE_TKM) Gold else SoftGreen,
+                    containerColor = if (mode == PrayerCalculationMode.MUFTIATE_TKM) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1856,7 +1951,7 @@ private fun PrayerCalculationSettingsCard(
                     onSettingsChanged()
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (mode == PrayerCalculationMode.OFFLINE_BACKUP) Gold else SoftGreen,
+                    containerColor = if (mode == PrayerCalculationMode.OFFLINE_BACKUP) Gold else Color.White,
                     contentColor = DeepGreen
                 )
             ) {
@@ -1924,27 +2019,51 @@ private fun NotificationSettingsScreen(
     val preferences = remember { context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE) }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFF2E5C9), Ivory, Color(0xFFF8F4EA))
+                )
+            )
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Spacer(Modifier.height(10.dp))
-            Text(
-                notificationSettingsTitle(language),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = DeepGreen
-            )
-            Text("📍 ${city.name}", color = Green)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(26.dp),
+                colors = CardDefaults.cardColors(containerColor = DeepGreen),
+                border = BorderStroke(1.dp, Gold.copy(alpha = 0.50f))
+            ) {
+                Column(
+                    Modifier
+                        .background(
+                            Brush.linearGradient(
+                                listOf(DeepGreen, Color(0xFF155240))
+                            )
+                        )
+                        .padding(18.dp)
+                ) {
+                    Text(
+                        "☾  " + notificationSettingsTitle(language),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Gold
+                    )
+                    Text("📍 " + city.name, color = Color.White.copy(alpha = 0.78f))
+                }
+            }
         }
 
         item {
             Card(
                 Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(containerColor = SoftGreen)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = PremiumCard),
+                border = BorderStroke(1.dp, Gold.copy(alpha = 0.45f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
                     Modifier.padding(16.dp),
@@ -1960,18 +2079,15 @@ private fun NotificationSettingsScreen(
                     PrayerParametersCard(language, settingsRevision)
                     AsrCalculationSettingsCard(language, refreshSchedules)
 
-                    var prayerTimeNotification by remember {
-                        mutableStateOf(preferences.getBoolean("prayer_time_notification", false))
-                    }
-
                     Text(
                         localized(
                             language,
-                            "🕌 Namaz wagtyndaky bildiriş",
-                            "🕌 Уведомление при наступлении времени намаза",
-                            "🕌 Notification at prayer time",
-                            "🕌 Namaz vaktinde bildirim"
+                            "🕌 Haýsy namazlar üçin",
+                            "🕌 Для каких намазов",
+                            "🕌 Which prayers",
+                            "🕌 Hangi namazlar"
                         ),
+                        fontWeight = FontWeight.Bold,
                         color = DeepGreen
                     )
 
@@ -1999,35 +2115,60 @@ private fun NotificationSettingsScreen(
                                 refreshSchedules()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (enabled) Gold else SoftGreen,
+                                containerColor = if (enabled) Gold else Color.White,
                                 contentColor = DeepGreen
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (enabled) Gold else Green.copy(alpha = 0.28f)
                             )
                         ) {
-                            Text("$prayerName ${if (enabled) "ON" else "OFF"}")
+                            Text(prayerName + " " + if (enabled) "ON" else "OFF")
                         }
-                    }
-
-                    Button(
-                        onClick = {
-                            prayerTimeNotification = !prayerTimeNotification
-                            preferences.edit()
-                                .putBoolean("prayer_time_notification", prayerTimeNotification)
-                                .apply()
-                            refreshSchedules()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (prayerTimeNotification) Gold else SoftGreen,
-                            contentColor = DeepGreen
-                        )
-                    ) {
-                        Text(if (prayerTimeNotification) "ON" else "OFF")
                     }
                 }
             }
         }
+
+        item {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = GoldSoft.copy(alpha = 0.72f)),
+                border = BorderStroke(1.dp, Gold.copy(alpha = 0.55f))
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        localized(
+                            language,
+                            "☾ Baş ekran widjeti",
+                            "☾ Виджет на главный экран",
+                            "☾ Home screen widget",
+                            "☾ Ana ekran widget'ı"
+                        ),
+                        fontWeight = FontWeight.Bold,
+                        color = DeepGreen,
+                        fontSize = 18.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        localized(
+                            language,
+                            "Telefonyň baş ekranyny basyp saklaň → Widjetler → NAMAZ WAGTY.",
+                            "Зажмите пустое место на главном экране → Виджеты → NAMAZ WAGTY.",
+                            "Long-press the home screen → Widgets → NAMAZ WAGTY.",
+                            "Ana ekrana uzun basın → Widget'lar → NAMAZ WAGTY."
+                        ),
+                        color = Green,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(10.dp)) }
     }
 }
-
 
 @Composable
 private fun DhikrScreen(text: UiText, language: AppLanguage) {
