@@ -2,6 +2,7 @@ package com.msterjime.zikirdua
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,6 +10,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -18,7 +21,8 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
-private const val ReminderChannelId = "prayer_reminders"
+private const val ReminderSoundChannelId = "prayer_reminders_sound_v2"
+private const val ReminderSilentChannelId = "prayer_reminders_silent_v2"
 private const val ReminderSchedulePrefs = "prayer_reminder_schedule"
 private const val ReminderCodesKey = "request_codes"
 private const val AppPrefs = "zikir_dua_settings"
@@ -63,13 +67,15 @@ internal fun reschedulePrayerEvents(
     languageCode: String
 ) {
     cancelPrayerEvents(context)
+    PrayerWidgetProvider.updateAll(context)
 
     val preferences = context.getSharedPreferences(AppPrefs, Context.MODE_PRIVATE)
-    val notificationEnabled = preferences.getBoolean("prayer_time_notification", false)
+    val screenNotificationEnabled = preferences.getBoolean("prayer_time_notification", false)
+    val soundNotificationEnabled = preferences.getBoolean("notification_sound_enabled", true)
     val azanEnabled = preferences.getBoolean("azan_enabled", false)
     val reminderMinutes = preferences.getInt("reminder_minutes", 10)
 
-    if (!notificationEnabled && !azanEnabled) return
+    if (!screenNotificationEnabled && !soundNotificationEnabled && !azanEnabled) return
 
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val now = ZonedDateTime.now(ReminderZone)
@@ -106,7 +112,7 @@ internal fun reschedulePrayerEvents(
                 requestCodes += code
             }
 
-            if (notificationEnabled && reminderMinutes > 0) {
+            if ((screenNotificationEnabled || soundNotificationEnabled) && reminderMinutes > 0) {
                 val reminderTime = exactTime.minusMinutes(reminderMinutes.toLong())
                 if (reminderTime.isAfter(now)) {
                     val code = requestCode(date, prayerIndex, false)
@@ -214,6 +220,8 @@ class PrayerReminderReceiver : BroadcastReceiver() {
         val minutesBefore = intent.getIntExtra("minutes_before", 0)
         val requestCode = intent.getIntExtra("request_code", 1001)
 
+        PrayerWidgetProvider.updateAll(context)
+
         if (exactPrayer) {
             if (preferences.getBoolean("vibration_enabled", true)) {
                 vibrateAtPrayer(context)
@@ -223,25 +231,33 @@ class PrayerReminderReceiver : BroadcastReceiver() {
             }
         }
 
-        val shouldNotify = if (exactPrayer) {
-            preferences.getBoolean("prayer_time_notification", false)
-        } else {
-            true
-        }
+        val showOnScreen = preferences.getBoolean("prayer_time_notification", false)
+        val soundEnabled = preferences.getBoolean("notification_sound_enabled", true)
 
-        if (!shouldNotify) return
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) return
+        if (!showOnScreen && !soundEnabled) return
 
-        createReminderChannel(context)
         val strings = receiverStrings(languageCode)
         val message = if (exactPrayer || minutesBefore <= 0) {
             prayerName + " • " + cityName
         } else {
             strings.minutesLeft(minutesBefore) + " • " + prayerName + " • " + cityName
         }
+
+        if (!showOnScreen) {
+            if (soundEnabled) playDefaultNotificationSound(context)
+            return
+        }
+
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (soundEnabled) playDefaultNotificationSound(context)
+            return
+        }
+
+        createReminderChannels(context)
+        val channelId = if (soundEnabled) ReminderSoundChannelId else ReminderSilentChannelId
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -253,15 +269,18 @@ class PrayerReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, ReminderChannelId)
+        val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(strings.prayerTime)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(false)
             .setContentIntent(openPendingIntent)
+            .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
             .build()
 
         NotificationManagerCompat.from(context).notify(requestCode, notification)
@@ -284,6 +303,7 @@ class PrayerBootReceiver : BroadcastReceiver() {
             labels = prayerLabels(language),
             languageCode = languageCode
         )
+        PrayerWidgetProvider.updateAll(context)
     }
 }
 
@@ -296,17 +316,46 @@ private fun vibrateAtPrayer(context: Context) {
     }
 }
 
-private fun createReminderChannel(context: Context) {
+private fun playDefaultNotificationSound(context: Context) {
+    runCatching {
+        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        RingtoneManager.getRingtone(context, uri)?.play()
+    }
+}
+
+private fun createReminderChannels(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val channel = NotificationChannel(
-            ReminderChannelId,
-            "Namaz reminders",
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .build()
+
+        val soundChannel = NotificationChannel(
+            ReminderSoundChannelId,
+            "Namaz reminders • sound",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Prayer time reminders"
+            description = "Prayer reminders on screen with sound"
             enableVibration(true)
+            enableLights(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(defaultSound, audioAttributes)
         }
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
+
+        val silentChannel = NotificationChannel(
+            ReminderSilentChannelId,
+            "Namaz reminders • silent",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Prayer reminders on screen without sound"
+            enableVibration(false)
+            enableLights(true)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(null, null)
+        }
+
+        manager.createNotificationChannel(soundChannel)
+        manager.createNotificationChannel(silentChannel)
     }
 }
