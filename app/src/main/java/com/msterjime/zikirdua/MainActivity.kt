@@ -22,6 +22,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -89,12 +91,14 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.tan
 
-private val DeepGreen = Color(0xFF173F35)
-private val Green = Color(0xFF2F6B57)
-private val SoftGreen = Color(0xFFEAF2EE)
-private val Gold = Color(0xFFC8A95B)
-private val Ivory = Color(0xFFF8F6EF)
-private val Ink = Color(0xFF1F2925)
+private val DeepGreen = Color(0xFF092F27)
+private val Green = Color(0xFF1E5A49)
+private val SoftGreen = Color(0xFFE7F1EC)
+private val Gold = Color(0xFFD5B35D)
+private val GoldSoft = Color(0xFFF3E7C6)
+private val Ivory = Color(0xFFFBF7EE)
+private val PremiumCard = Color(0xFFFFFCF6)
+private val Ink = Color(0xFF18231F)
 
 private fun localized(
     language: AppLanguage,
@@ -154,6 +158,8 @@ private fun dhikrReading(text: String, language: AppLanguage): String {
             "Ýä Fattah, Ýä Razzaq, Ýä Ganiý, Ýä Mugni"
         "Subhana Rabbika Rabbil-'izzati 'amma yasifun, wa salamun 'alal-mursalin, walhamdulillahi Rabbil-'alamin" ->
             "Subhana Rabbika Rabbil-'izzati 'amma ýasifun, wä salämun 'alal-mursalin, walhamdulillahi Rabbil-'alamin"
+        "Rabbi inni lima anzalta ilayya min khayrin faqir" ->
+            "Rabbi inni limä anzalta ilaýýa min haýrin fakir"
         else -> original
     }
 
@@ -1196,11 +1202,21 @@ LaunchedEffect("auto_location") {
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         containerColor = Ivory,
         bottomBar = {
-            NavigationBar(modifier = Modifier.navigationBarsPadding(), containerColor = Color.White) {
+            NavigationBar(
+                modifier = Modifier.navigationBarsPadding(),
+                containerColor = DeepGreen
+            ) {
                 AppTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Gold,
+                            selectedTextColor = Gold,
+                            indicatorColor = Gold.copy(alpha = 0.15f),
+                            unselectedIconColor = Color.White.copy(alpha = 0.62f),
+                            unselectedTextColor = Color.White.copy(alpha = 0.62f)
+                        ),
                         icon = {
                             Text(
                                 tab.symbol,
@@ -1214,7 +1230,16 @@ LaunchedEffect("auto_location") {
             }
         }
     ) { innerPadding ->
-        Box(Modifier.fillMaxSize().padding(innerPadding)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFFF4EAD4), Ivory, Color(0xFFF7F2E8))
+                    )
+                )
+                .padding(innerPadding)
+        ) {
             when (selectedTab) {
                 AppTab.HOME -> HomeScreen(
                     city = selectedCity,
@@ -1311,38 +1336,104 @@ private fun HomeScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Color(0xFFF0F5F1), Ivory, Ivory)))
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFF2E5C9), Ivory, Color(0xFFF8F4EA))
+                )
+            )
             .padding(horizontal = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item { Spacer(Modifier.height(10.dp)) }
         item {
-            Text("NAMAZ WAGTY", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-            Text(
-                localized(
-                    language,
-                    "Zikir we dogalar • v1.2",
-                    "Зикр и дуа • v1.2",
-                    "Dhikr & Duas • v1.2",
-                    "Zikir ve dualar • v1.2"
-                ),
-                fontSize = 14.sp,
-                color = Green
-            )
-            Box {
-                Button(onClick = { languageMenuOpen = true }, colors = ButtonDefaults.buttonColors(containerColor = SoftGreen, contentColor = DeepGreen)) {
-                    Text("🌐 ${language.label} ▾")
-                }
-                DropdownMenu(expanded = languageMenuOpen, onDismissRequest = { languageMenuOpen = false }) {
-                    AppLanguage.entries.forEach { option ->
-                        DropdownMenuItem(text = { Text(option.label) }, onClick = { onLanguageSelected(option); languageMenuOpen = false })
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = DeepGreen),
+                border = BorderStroke(1.dp, Gold.copy(alpha = 0.55f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(DeepGreen, Color(0xFF145342), DeepGreen)
+                            )
+                        )
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Text(
+                            "☾  NAMAZ WAGTY",
+                            fontSize = 29.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Gold
+                        )
+                        Text(
+                            localized(
+                                language,
+                                "Zikir we dogalar • v1.3",
+                                "Зикр и дуа • v1.3",
+                                "Dhikr & Duas • v1.3",
+                                "Zikir ve dualar • v1.3"
+                            ),
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.78f)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Box {
+                            Button(
+                                onClick = { languageMenuOpen = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Gold,
+                                    contentColor = DeepGreen
+                                )
+                            ) {
+                                Text("🌐 ${language.label} ▾", fontWeight = FontWeight.Bold)
+                            }
+                            DropdownMenu(
+                                expanded = languageMenuOpen,
+                                onDismissRequest = { languageMenuOpen = false }
+                            ) {
+                                AppLanguage.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.label) },
+                                        onClick = {
+                                            onLanguageSelected(option)
+                                            languageMenuOpen = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
+                    Text(
+                        "✦",
+                        modifier = Modifier.align(Alignment.TopEnd),
+                        color = Gold.copy(alpha = 0.42f),
+                        fontSize = 34.sp
+                    )
                 }
             }
         }
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = DeepGreen)) {
-                Column(Modifier.padding(18.dp)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = DeepGreen),
+                border = BorderStroke(1.dp, Gold.copy(alpha = 0.48f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Column(
+                    Modifier
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF0A3028), Color(0xFF114C3E))
+                            )
+                        )
+                        .padding(19.dp)
+                ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text("📍 ${city.name}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1396,7 +1487,14 @@ private fun HomeScreen(
                 }
             }
         }
-        item { Text(text.quickAccess, fontSize=19.sp, fontWeight=FontWeight.SemiBold, color=Ink) }
+        item {
+            Text(
+                "✦  ${text.quickAccess}",
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                color = DeepGreen
+            )
+        }
         item { QuickAction("✦", text.dhikr, text.dhikrDuaTitle, onDhikr) }
         item { QuickAction("●", text.tasbih, text.counter, onTasbih) }
         item { QuickAction("🔔", notificationSettingsTitle(language), notificationSettingsSubtitle(language), onNotifications) }
@@ -1407,20 +1505,28 @@ private fun HomeScreen(
 private fun QuickAction(symbol: String, title: String, subtitle: String, onClick: () -> Unit) {
     Card(
         Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = PremiumCard),
+        border = BorderStroke(1.dp, Gold.copy(alpha = 0.42f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
-                Modifier.size(48.dp).background(SoftGreen, RoundedCornerShape(15.dp)),
+                Modifier
+                    .size(50.dp)
+                    .background(GoldSoft, RoundedCornerShape(17.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(symbol, fontSize = 24.sp, color = DeepGreen)
             }
-            Column(Modifier.padding(start = 14.dp)) {
-                Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, fontSize = 13.sp, color = Color.Gray)
+            Column(Modifier.padding(start = 14.dp).weight(1f)) {
+                Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                Text(subtitle, fontSize = 13.sp, color = Green)
             }
+            Text("›", fontSize = 30.sp, color = Gold, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -2200,6 +2306,36 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
             "",
             t("Gurhan 20:114", "Коран 20:114", "Quran 20:114", "Kur'an 20:114"),
             1
+        ),
+        DhikrItem(
+            t(
+                "Rysgal we ýagşylyk üçin doga ×1",
+                "Дуа о благе и уделе ×1",
+                "Prayer for goodness and provision ×1",
+                "Hayır ve rızık duası ×1"
+            ),
+            "",
+            "Rabbi inni lima anzalta ilayya min khayrin faqir.",
+            t(
+                "Eý, Rebbim! Maňa inderjek her bir ýagşylygyň-a mätäçdirin.",
+                "Господи! Поистине, я нуждаюсь в любом благе, которое Ты ниспошлёшь мне.",
+                "My Lord, I am truly in need of whatever good You send down to me.",
+                "Rabbim! Bana indireceğin her hayra gerçekten muhtacım."
+            ),
+            t(
+                "Rysgal, iş, mümkinçilik ýa-da ýagşylyk dilemekde",
+                "Когда просишь удела, работы, возможности или блага",
+                "When asking for provision, work, opportunity, or goodness",
+                "Rızık, iş, fırsat veya hayır isterken"
+            ),
+            t(
+                "Alla ýüzlenip ýagşylyk we rysgal dilemek.",
+                "Просьба к Аллаху о благе и уделе.",
+                "Seeking goodness and provision from Allah.",
+                "Allah'tan hayır ve rızık istemek."
+            ),
+            t("Gurhan 28:24", "Коран 28:24", "Quran 28:24", "Kur'an 28:24"),
+            1
         )
     )
 
@@ -2256,34 +2392,88 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
 
     if (selected == null) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFFF2E5C9), Ivory, Color(0xFFF8F4EA))
+                    )
+                )
+                .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Spacer(Modifier.height(10.dp))
-                Text(text.dhikrDuaTitle, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
-                Text(text.chooseSection, color = Green)
+                Spacer(Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = CardDefaults.cardColors(containerColor = DeepGreen),
+                    border = BorderStroke(1.dp, Gold.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        Modifier
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(DeepGreen, Color(0xFF155240))
+                                )
+                            )
+                            .padding(18.dp)
+                    ) {
+                        Text(
+                            "☾  ${text.dhikrDuaTitle}",
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Gold
+                        )
+                        Text(
+                            text.chooseSection,
+                            color = Color.White.copy(alpha = 0.75f)
+                        )
+                    }
+                }
             }
 
             items(categories.keys.toList()) { category ->
+                val itemCount = categories[category]?.size ?: 0
                 Card(
                     Modifier.fillMaxWidth().clickable {
                         selected = category
                         expandedItems = emptySet()
                     },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(containerColor = PremiumCard),
+                    border = BorderStroke(1.dp, Gold.copy(alpha = 0.42f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                 ) {
-                    Text(
-                        category,
-                        Modifier.padding(18.dp),
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DeepGreen
-                    )
+                    Row(
+                        Modifier.padding(horizontal = 17.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                category,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DeepGreen
+                            )
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                localized(
+                                    language,
+                                    "$itemCount zikir / doga",
+                                    "$itemCount зикр / дуа",
+                                    "$itemCount dhikr / dua",
+                                    "$itemCount zikir / dua"
+                                ),
+                                color = Green,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Text("›", color = Gold, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-            item { Spacer(Modifier.height(10.dp)) }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     } else {
         val currentCategory = selected.orEmpty()
@@ -2291,19 +2481,37 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
         val categoryIndex = categories.keys.indexOf(currentCategory).coerceAtLeast(0)
 
         LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 18.dp),
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFFF2E5C9), Ivory, Color(0xFFF8F4EA))
+                    )
+                )
+                .padding(horizontal = 18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = {
-                    selected = null
-                    expandedItems = emptySet()
-                }) {
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = {
+                        selected = null
+                        expandedItems = emptySet()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DeepGreen,
+                        contentColor = Gold
+                    )
+                ) {
                     Text(t("← Yza", "← Назад", "← Back", "← Geri"))
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(currentCategory, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = DeepGreen)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    currentCategory,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DeepGreen
+                )
             }
 
             items(list.size) { index ->
@@ -2318,8 +2526,12 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
                     Modifier.fillMaxWidth().clickable {
                         expandedItems = if (expanded) expandedItems - index else expandedItems + index
                     },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    shape = RoundedCornerShape(22.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (expanded) GoldSoft.copy(alpha = 0.45f) else PremiumCard
+                    ),
+                    border = BorderStroke(1.dp, Gold.copy(alpha = if (expanded) 0.7f else 0.38f)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (expanded) 4.dp else 2.dp)
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Row(
@@ -2391,9 +2603,16 @@ private fun DhikrScreen(text: UiText, language: AppLanguage) {
                                         vibrateShort(context)
                                     }
                                     preferences.edit().putInt(countKey, value).apply()
-                                }
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Gold,
+                                    contentColor = DeepGreen
+                                )
                             ) {
-                                Text(value.toString() + " / " + item.countTarget + "  +1")
+                                Text(
+                                    value.toString() + " / " + item.countTarget + "  +1",
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -2526,7 +2745,14 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(18.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFF2E5C9), Ivory, Color(0xFFF8F4EA))
+                )
+            )
+            .padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(6.dp))
@@ -2589,12 +2815,27 @@ private fun TasbihScreen(text: UiText, language: AppLanguage) {
 
         Card(
             modifier = Modifier.fillMaxWidth().weight(1f),
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = DeepGreen)
+            shape = RoundedCornerShape(32.dp),
+            colors = CardDefaults.cardColors(containerColor = DeepGreen),
+            border = BorderStroke(1.dp, Gold.copy(alpha = 0.6f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 7.dp)
         ) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(top = 30.dp, bottom = 22.dp, start = 22.dp, end = 22.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF082A23), Color(0xFF145342), Color(0xFF082A23))
+                        )
+                    )
+                    .padding(top = 30.dp, bottom = 22.dp, start = 22.dp, end = 22.dp)
             ) {
+                Text(
+                    "☾  ✦",
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    color = Gold.copy(alpha = 0.35f),
+                    fontSize = 26.sp
+                )
                 Column(
                     modifier = Modifier.align(Alignment.TopCenter),
                     horizontalAlignment = Alignment.CenterHorizontally
