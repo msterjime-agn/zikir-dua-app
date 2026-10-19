@@ -2,10 +2,6 @@ package com.msterjime.zikirdua
 
 import android.Manifest
 import android.content.Context
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.Notification
-import androidx.core.app.NotificationCompat
 import android.os.Build
 import android.content.pm.PackageManager
 import android.location.Location
@@ -202,93 +198,6 @@ private fun playTasbihClick(context: Context) {
     }
 }
 
-private fun createPrayerNotificationChannel(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = NotificationChannel(
-            "prayer_time",
-            "Prayer time notifications",
-            NotificationManager.IMPORTANCE_HIGH
-        )
-        manager.createNotificationChannel(channel)
-    }
-}
-
-
-private fun showPrayerNotification(context: Context, title: String, message: String) {
-    runCatching {
-        createPrayerNotificationChannel(context)
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val notification = NotificationCompat.Builder(context, "prayer_time")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
-
-        manager.notify(title.hashCode(), notification)
-
-        val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
-        if (preferences.getBoolean("azan_enabled", false)) {
-            playAzan(context)
-        }
-    }
-}
-
-
-private fun checkPrayerReminder(
-    context: Context,
-    nextPrayer: NextPrayer,
-    reminderMinutes: Int
-) {
-    runCatching {
-        val now = ZonedDateTime.now(TurkmenistanZone)
-        val prayerDateTime = ZonedDateTime.of(
-            nextPrayer.date,
-            nextPrayer.time,
-            TurkmenistanZone
-        )
-
-        val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
-
-        if (minutesLeft == reminderMinutes.toLong() && isPrayerNotificationEnabled(context, nextPrayer.name)) {
-            showPrayerNotification(
-                context,
-                "🕌 ${nextPrayer.name}",
-                "Через $reminderMinutes мин. наступает время намаза"
-            )
-        }
-    }
-}
-
-
-private fun checkExactPrayerTime(
-    context: Context,
-    nextPrayer: NextPrayer
-) {
-    runCatching {
-        val now = ZonedDateTime.now(TurkmenistanZone)
-        val prayerDateTime = ZonedDateTime.of(
-            nextPrayer.date,
-            nextPrayer.time,
-            TurkmenistanZone
-        )
-
-        val minutesLeft = Duration.between(now, prayerDateTime).toMinutes()
-
-        if (minutesLeft == 0L && isPrayerNotificationEnabled(context, nextPrayer.name)) {
-            showPrayerNotification(
-                context,
-                "🕌 ${nextPrayer.name}",
-                "Наступило время намаза"
-            )
-        }
-    }
-}
-
-
 private val PrayerNotificationKeys = listOf(
     "fajr_notification",
     "dhuhr_notification",
@@ -296,18 +205,6 @@ private val PrayerNotificationKeys = listOf(
     "maghrib_notification",
     "isha_notification"
 )
-
-private fun isPrayerNotificationEnabled(context: Context, prayerName: String): Boolean {
-    val preferences = context.getSharedPreferences("zikir_dua_settings", Context.MODE_PRIVATE)
-    return when {
-        prayerName.contains("ФАДЖР", true) || prayerName.contains("FAJR", true) || prayerName.contains("ERTIR", true) -> preferences.getBoolean("fajr_notification", true)
-        prayerName.contains("ЗУХР", true) || prayerName.contains("DHUHR", true) || prayerName.contains("ÖÝLE", true) -> preferences.getBoolean("dhuhr_notification", true)
-        prayerName.contains("АСР", true) || prayerName.contains("ASR", true) || prayerName.contains("IKINDI", true) -> preferences.getBoolean("asr_notification", true)
-        prayerName.contains("МАГРИБ", true) || prayerName.contains("MAGHRIB", true) || prayerName.contains("AGŞAM", true) -> preferences.getBoolean("maghrib_notification", true)
-        prayerName.contains("ИША", true) || prayerName.contains("ISHA", true) || prayerName.contains("ÝASSY", true) -> preferences.getBoolean("isha_notification", true)
-        else -> true
-    }
-}
 
 
 private enum class PrayerCalculationMode {
