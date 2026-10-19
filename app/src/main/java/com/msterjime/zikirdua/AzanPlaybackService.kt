@@ -58,6 +58,7 @@ class AzanPlaybackService : Service() {
             .setContentText(selected)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setSilent(true)
             .build()
 
         startForeground(AzanPlaybackNotificationId, notification)
