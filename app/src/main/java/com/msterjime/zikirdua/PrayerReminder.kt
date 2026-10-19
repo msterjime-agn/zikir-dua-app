@@ -16,7 +16,6 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -106,6 +105,7 @@ internal fun reschedulePrayerEvents(
                     prayerName = prayerName,
                     cityName = city.name,
                     languageCode = languageCode,
+                    prayerIndex = prayerIndex,
                     minutesBefore = 0,
                     exactPrayer = true
                 )
@@ -124,6 +124,7 @@ internal fun reschedulePrayerEvents(
                         prayerName = prayerName,
                         cityName = city.name,
                         languageCode = languageCode,
+                        prayerIndex = prayerIndex,
                         minutesBefore = reminderMinutes,
                         exactPrayer = false
                     )
@@ -152,6 +153,7 @@ private fun scheduleEvent(
     prayerName: String,
     cityName: String,
     languageCode: String,
+    prayerIndex: Int,
     minutesBefore: Int,
     exactPrayer: Boolean
 ) {
@@ -160,6 +162,7 @@ private fun scheduleEvent(
         putExtra("prayer_name", prayerName)
         putExtra("city_name", cityName)
         putExtra("language_code", languageCode)
+        putExtra("prayer_index", prayerIndex)
         putExtra("minutes_before", minutesBefore)
         putExtra("exact_prayer", exactPrayer)
     }
@@ -219,6 +222,19 @@ class PrayerReminderReceiver : BroadcastReceiver() {
         val languageCode = intent.getStringExtra("language_code") ?: "tm"
         val minutesBefore = intent.getIntExtra("minutes_before", 0)
         val requestCode = intent.getIntExtra("request_code", 1001)
+        val explicitPrayerIndex = intent.getIntExtra("prayer_index", -1)
+        val prayerIndex = explicitPrayerIndex
+            .takeIf { it in NotificationKeys.indices }
+            ?: notificationIndexForPrayerName(prayerName)
+
+        // Re-check when the alarm actually fires. This also protects alarms
+        // scheduled by older builds when the user disabled one prayer later.
+        if (
+            prayerIndex != null &&
+            !preferences.getBoolean(NotificationKeys[prayerIndex], true)
+        ) {
+            return
+        }
 
         PrayerWidgetProvider.updateAll(context)
 
@@ -252,11 +268,12 @@ class PrayerReminderReceiver : BroadcastReceiver() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            if (soundEnabled) playDefaultNotificationSound(context)
             return
         }
 
         createReminderChannels(context)
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = if (soundEnabled) ReminderSoundChannelId else ReminderSilentChannelId
 
         val openIntent = Intent(context, MainActivity::class.java).apply {
@@ -279,11 +296,56 @@ class PrayerReminderReceiver : BroadcastReceiver() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .setOnlyAlertOnce(false)
+            .setSilent(!soundEnabled)
             .setContentIntent(openPendingIntent)
             .setDefaults(NotificationCompat.DEFAULT_LIGHTS)
             .build()
 
-        NotificationManagerCompat.from(context).notify(requestCode, notification)
+        notificationManager.notify(requestCode, notification)
+    }
+}
+
+private fun notificationIndexForPrayerName(prayerName: String): Int? {
+    if (prayerName.isBlank()) return null
+
+    AppLanguage.entries.forEach { language ->
+        val labels = prayerLabels(language)
+        val names = listOf(
+            labels.fajr,
+            labels.dhuhr,
+            labels.asr,
+            labels.maghrib,
+            labels.isha
+        )
+        val index = names.indexOfFirst { label ->
+            prayerName.equals(label, ignoreCase = true) ||
+                prayerName.contains(label, ignoreCase = true)
+        }
+        if (index >= 0) return index
+    }
+
+    return when {
+        prayerName.contains("FAJR", true) ||
+            prayerName.contains("ФАДЖР", true) ||
+            prayerName.contains("ERTIR", true) ||
+            prayerName.contains("SABAH", true) -> 0
+        prayerName.contains("DHUHR", true) ||
+            prayerName.contains("ЗУХР", true) ||
+            prayerName.contains("ÖÝLE", true) ||
+            prayerName.contains("ÖĞLE", true) -> 1
+        prayerName.contains("ASR", true) ||
+            prayerName.contains("АСР", true) ||
+            prayerName.contains("IKINDI", true) ||
+            prayerName.contains("İKİNDİ", true) -> 2
+        prayerName.contains("MAGHRIB", true) ||
+            prayerName.contains("МАГРИБ", true) ||
+            prayerName.contains("AGŞAM", true) ||
+            prayerName.contains("AKŞAM", true) -> 3
+        prayerName.contains("ISHA", true) ||
+            prayerName.contains("ИША", true) ||
+            prayerName.contains("ÝASSY", true) ||
+            prayerName.contains("YATSI", true) -> 4
+        else -> null
     }
 }
 
